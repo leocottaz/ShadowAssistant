@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Shadow Assistant
+Comment=Dock en verre : rappels, to-do, minuteur, notes, musique et Claude
+Exec=shadow-assistant
+Icon=shadow-assistant
+Terminal=false
+Categories=Utility;
+StartupNotify=false

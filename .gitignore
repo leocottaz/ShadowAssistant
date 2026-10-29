@@ -1,0 +1,15 @@
+# Builds
+build/
+build-deb/
+cmake-build-*/
+stage/
+dist/
+out/
+
+# Réglages locaux (toolchain de chacun)
+CMakeUserPresets.json
+
+# IDE
+.idea/
+.vs/
+.vscode/

@@ -1,0 +1,160 @@
+/* Onglet Réglages : sections, contrôles segmentés, curseurs, interrupteurs, routines. */
+
+.settings { display: flex; flex-direction: column; gap: 10px; }
+.card { padding: 13px 15px 7px; border-radius: 16px; }
+.card h3 { display: flex; align-items: center; gap: 8px; margin: 0 0 4px; font: 650 13.5px var(--font-d); }
+.card h3 .ic { width: 16px; color: var(--accent); }
+.field { margin: 11px 0; }
+.field > label { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 7px; color: var(--fg2); font-size: 12px; }
+.field output { color: var(--fg); font-weight: 600; font-variant-numeric: tabular-nums; }
+.hint { color: var(--fg3); font-size: 11px; }
+.field textarea { width: 100%; }
+
+.key-row { display: flex; gap: 8px; }
+.key-row input { flex: 1; min-width: 0; font-family: var(--mono); font-size: 12px; }
+.key-status { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 7px; color: var(--fg2); font-size: 12px; }
+.key-status .ok { color: #3ddc84; font-weight: 600; }
+.key-status .bad { color: #ff7b8a; font-weight: 600; }
+.key-status a { color: color-mix(in srgb, var(--accent) 60%, var(--fg)); cursor: pointer; }
+.key-status code { padding: 3px 7px; border-radius: 6px; background: var(--code); font: 11.5px var(--mono); user-select: all; }
+.key-status .ic { width: 14px; height: 14px; }
+.key-status button { height: 24px; padding: 0 9px; border: 1px solid var(--stroke); border-radius: 8px; color: var(--fg2); font-size: 11.5px; }
+.key-status button:hover { background: var(--hover); color: var(--fg); }
+
+.seg {
+  position: relative;
+  display: grid;
+  grid-auto-columns: 1fr;
+  grid-auto-flow: column;
+  padding: 3px;
+  border: 1px solid var(--stroke);
+  border-radius: 11px;
+  background: var(--field);
+}
+.seg button { position: relative; z-index: 1; height: 28px; border-radius: 8px; color: var(--fg2); font-size: 12.5px; }
+.seg button:hover { color: var(--fg); }
+.seg button.on { color: var(--fg); font-weight: 600; }
+.seg button:active { transform: scale(.96); }
+.seg-thumb {
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  left: 3px;
+  width: calc((100% - 6px) / var(--n, 2));
+  border: 1px solid var(--stroke-hi);
+  border-radius: 8px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, .2), rgba(255, 255, 255, .07));
+  box-shadow: 0 3px 10px -4px color-mix(in srgb, var(--accent) 70%, transparent), inset 0 1px 0 rgba(255, 255, 255, .3);
+  transform: translateX(calc(100% * var(--i, 0)));
+  transition: transform .55s var(--spring);
+}
+.theme-light .seg-thumb { background: #fff; }
+
+.mode-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 12px 0 4px; }
+.mode-cards button {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 10px;
+  border: 1px solid var(--stroke);
+  border-radius: 14px;
+  background: var(--glass-b);
+  text-align: left;
+}
+.mode-cards button:hover { border-color: var(--stroke-hi); background: var(--hover); }
+.mode-cards button.on {
+  border-color: color-mix(in srgb, var(--accent) 75%, transparent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent), 0 10px 24px -14px var(--accent);
+}
+.mode-cards b { font-size: 13px; }
+.mode-cards small { color: var(--fg2); font-size: 11.5px; line-height: 1.35; }
+.mini { position: relative; display: block; width: 100%; height: 44px; margin-bottom: 7px; overflow: hidden; border-radius: 9px; background: linear-gradient(160deg, rgba(120, 110, 200, .25), rgba(60, 160, 200, .15)), var(--field); }
+.mini > span { position: absolute; top: 0; left: 50%; translate: -50% 0; border-radius: 0 0 4px 4px; }
+.mini-hidden > span { left: 25%; translate: 0; width: 0; height: 4px; background: linear-gradient(90deg, var(--accent), var(--accent2)); box-shadow: 0 0 8px var(--accent); animation: miniFill 2.4s var(--smooth) infinite; }
+.mini-peek > span { width: 36px; height: 4px; background: rgba(255, 255, 255, .55); animation: miniPeek 2.4s var(--spring) infinite; }
+@keyframes miniFill { 0% { width: 0; height: 4px; } 55% { width: 50%; height: 4px; } 70%, 90% { width: 50%; height: 14px; border-radius: 0 0 6px 6px; } 100% { width: 50%; height: 4px; opacity: 0; } }
+@keyframes miniPeek { 0%, 40% { width: 36px; height: 4px; } 55%, 85% { width: 60%; height: 14px; border-radius: 0 0 6px 6px; background: rgba(255, 255, 255, .3); } 100% { width: 36px; height: 4px; } }
+
+input[type=range] {
+  --v: 50%;
+  width: 100%;
+  height: 18px;
+  margin: 0;
+  background: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+}
+input[type=range]::-webkit-slider-runnable-track {
+  height: 5px;
+  border-radius: 3px;
+  background: linear-gradient(90deg, var(--accent), var(--accent2)) 0 0 / var(--v) 100% no-repeat, var(--press);
+}
+input[type=range]::-webkit-slider-thumb {
+  width: 18px;
+  height: 18px;
+  margin-top: -6.5px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, .35), 0 0 0 4px color-mix(in srgb, var(--accent) 0%, transparent);
+  -webkit-appearance: none;
+  transition: transform .35s var(--spring), box-shadow .25s;
+}
+input[type=range]:hover::-webkit-slider-thumb { box-shadow: 0 2px 8px rgba(0, 0, 0, .35), 0 0 0 5px color-mix(in srgb, var(--accent) 25%, transparent); }
+input[type=range]:active::-webkit-slider-thumb { transform: scale(1.25); }
+
+.toggle-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 40px; border-top: 1px solid var(--stroke); font-size: 12.5px; cursor: pointer; }
+.card h3 + .toggle-row { border-top: 0; }
+.toggle { position: relative; flex: none; width: 40px; height: 24px; }
+.toggle input { position: absolute; opacity: 0; }
+.toggle span { position: absolute; inset: 0; border-radius: 12px; background: var(--press); box-shadow: inset 0 1px 3px rgba(0, 0, 0, .2); transition: background .3s; }
+.toggle span::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, .3);
+  transition: transform .45s var(--spring), width .25s var(--smooth);
+}
+.toggle input:checked + span { background: linear-gradient(90deg, var(--accent), var(--accent2)); }
+.toggle input:checked + span::after { transform: translateX(16px); }
+.toggle:active span::after { width: 23px; }
+.toggle input:checked:active + span::after { transform: translateX(11px); }
+
+/* Modèle gratuit (Claude › Connexion) : séparé des réglages propres à Claude. */
+.free-section { margin-top: 8px; border-top: 1px solid var(--stroke); }
+.free-section .toggle-row { border-top: 0; }
+#freeModel { width: 100%; }
+
+/* Routines : un bloc par routine, une ligne par étape (type + réglage). */
+.card-hint { margin: 2px 0 10px; line-height: 1.4; }
+.routine { margin-bottom: 9px; padding: 9px; border: 1px solid var(--stroke); border-radius: 13px; background: var(--glass-b); animation: pop .45s var(--spring) both; }
+.routine.leaving { animation: leave .3s var(--smooth) forwards; }
+.routine-head { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+.routine-name { flex: 1; min-width: 0; height: 32px; font-weight: 600; }
+.routine-head .primary { height: 32px; }
+.routine-head .primary .ic { width: 12px; height: 12px; }
+.routine-head .del { width: 30px; height: 30px; }
+.routine-head .del:hover { color: #ff7b8a; }
+.step { display: flex; align-items: center; gap: 6px; margin-top: 5px; }
+.step-type { flex: none; width: 104px; height: 30px; padding-top: 0; padding-bottom: 0; }
+.step-control { display: flex; flex: 1; align-items: center; gap: 8px; min-width: 0; }
+.step-control > input:not([type=range]), .step-control select { flex: 1; min-width: 0; height: 30px; padding-top: 0; padding-bottom: 0; font-size: 12.5px; }
+.step-control input.step-secs { flex: none; width: 64px; }
+.step-control output { width: 40px; font-size: 12px; font-weight: 600; text-align: right; font-variant-numeric: tabular-nums; }
+.step-pick { flex: none; height: 30px; padding: 0 10px; font-size: 12px; }
+.step .icon-btn { width: 26px; height: 26px; flex: none; color: var(--fg3); }
+.step .icon-btn:hover { color: #ff7b8a; }
+.add-step { height: 28px; margin-top: 7px; padding: 0 10px; font-size: 12px; }
+.add-routine { margin: 2px 0 8px; }
+.routines-empty { margin: 0 0 8px; }
+
+.swatches { display: flex; gap: 9px; }
+.swatches button { width: 24px; height: 24px; border-radius: 50%; background: linear-gradient(135deg, var(--a), var(--b)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .4), 0 4px 10px -4px var(--a); }
+.swatches button:hover { transform: scale(1.15); }
+.swatches button.on { box-shadow: 0 0 0 2px var(--glass-a), 0 0 0 4px var(--a), 0 4px 14px -2px var(--a); }

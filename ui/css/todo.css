@@ -1,0 +1,84 @@
+/* Onglet To-do. (.sec-title et .empty viennent de reminders.css.) */
+
+/* Anneau de progression : part des tâches faites. */
+.todo-progress {
+  position: relative;
+  width: 30px;
+  height: 30px;
+  margin-bottom: 2px;
+  border-radius: 50%;
+  background: conic-gradient(#3ddc84 calc(var(--p, 0) * 1turn), var(--press) 0);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 3.5px));
+  transition: --p .6s var(--smooth);
+}
+
+.todo-composer { display: flex; align-items: center; gap: 9px; height: 44px; margin-bottom: 8px; padding: 0 12px; border-radius: 14px; }
+.todo-composer .ic { width: 17px; flex: none; color: var(--accent); }
+.todo-composer input { flex: 1; min-width: 0; padding: 0 !important; border: 0 !important; background: none !important; box-shadow: none !important; font-size: 13.5px; }
+
+.todo {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-height: 44px;
+  margin-bottom: 6px;
+  padding: 7px 8px 7px 11px;
+  border-radius: 13px;
+  transition: opacity .3s, border-color .3s, background .3s;
+}
+.todo.fresh { animation: pop .45s var(--spring) both; }
+.todo.leaving { animation: leave .34s var(--smooth) forwards; } /* @keyframes leave : reminders.css */
+
+/* Case à cocher ronde : se remplit de vert, la coche se dessine. */
+.todo-check {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  flex: none;
+  border: 2px solid var(--fg3);
+  border-radius: 50%;
+  color: #fff;
+  transition: border-color .25s, background .25s, transform .35s var(--spring), box-shadow .3s;
+}
+.todo-check:hover { border-color: #3ddc84; transform: scale(1.1); }
+.todo-check .ic { width: 13px; height: 13px; stroke-width: 3; stroke-dasharray: 24; stroke-dashoffset: 24; transition: stroke-dashoffset .3s var(--smooth) .05s; }
+.todo.done .todo-check, .todo.checking .todo-check {
+  border-color: #3ddc84;
+  background: #3ddc84;
+  box-shadow: 0 0 12px -2px #3ddc84;
+}
+.todo.done .todo-check .ic, .todo.checking .todo-check .ic { stroke-dashoffset: 0; }
+.todo.checking .todo-check { animation: pop .4s var(--spring); }
+
+.todo-text {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: 13.5px;
+  font-weight: 550;
+  line-height: 1.35;
+  outline: 0;
+  cursor: default;
+}
+.todo-text[contenteditable] { cursor: text; padding: 2px 6px; margin: -2px -6px; border-radius: 7px; background: var(--field); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 45%, transparent); }
+.todo.checking .todo-text { color: var(--fg3); text-decoration: line-through; transition: color .3s; }
+.todo.done { opacity: .55; }
+.todo.done .todo-text { color: var(--fg2); text-decoration: line-through; text-decoration-color: var(--fg3); }
+
+.todo-actions { display: flex; gap: 2px; opacity: 0; transform: translateX(6px); transition: opacity .25s, transform .35s var(--smooth); }
+.todo:hover .todo-actions { opacity: 1; transform: none; }
+.todo-actions .icon-btn { width: 28px; height: 28px; }
+.todo-actions .del:hover { color: #ff7b8a; }
+.todo-star:hover { color: #ffb547; }
+
+/* Tâche importante : étoile dorée toujours visible, liseré ambré. */
+.todo.star { border-color: color-mix(in srgb, #ffb547 45%, transparent); background: linear-gradient(90deg, color-mix(in srgb, #ffb547 14%, transparent), var(--glass-b)); }
+.todo.star .todo-actions { opacity: 1; transform: none; }
+.todo.star .todo-actions .del { opacity: 0; transition: opacity .25s; }
+.todo.star:hover .todo-actions .del { opacity: 1; }
+.todo.star .todo-star { color: #ffb547; }
+.todo.star .todo-star .ic { fill: currentColor; }
+
+.todo-clear { padding: 18px 0 6px; color: var(--fg2); font-size: 13px; text-align: center; animation: pop .5s var(--spring) both; }

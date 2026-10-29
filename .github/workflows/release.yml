@@ -1,0 +1,85 @@
+name: Release
+
+# Publier : git tag v0.1.0 && git push origin v0.1.0
+on:
+  push:
+    tags: ['v*']
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-cmake
+            mingw-w64-x86_64-ninja
+      - name: Compiler et empaqueter (ZIP portable)
+        run: |
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DSHADOW_VERSION=${{ github.ref_name }}
+          cmake --build build
+          cd build && cpack -G ZIP
+      - name: Préparer les fichiers de l'installateur
+        run: cmake --install build --prefix "$PWD/stage"
+      - name: Installateur (Inno Setup)
+        shell: pwsh
+        run: |
+          choco install innosetup -y --no-progress
+          $version = "${{ github.ref_name }}".TrimStart('v')
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" "/DAppVersion=$version" "/DStageDir=$PWD\stage" "/DOutDir=$PWD\dist" installer\windows\shadow-assistant.iss
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Rassembler les fichiers à publier
+        run: |
+          mkdir -p out
+          cp build/ShadowAssistant-*-windows-x64.zip dist/ShadowAssistant-*-setup.exe out/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: out/*
+
+  linux:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dépendances
+        run: sudo apt-get update && sudo apt-get install -y cmake ninja-build pkg-config libgtk-3-dev libwebkit2gtk-4.1-dev libcurl4-openssl-dev libx11-dev
+      - name: Compiler et empaqueter (archive portable)
+        run: |
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DSHADOW_VERSION=${{ github.ref_name }}
+          cmake --build build
+          cd build && cpack -G TGZ
+      - name: Paquet .deb
+        run: |
+          cmake -S . -B build-deb -G Ninja -DCMAKE_BUILD_TYPE=Release -DSHADOW_DEB_LAYOUT=ON -DSHADOW_VERSION=${{ github.ref_name }}
+          cmake --build build-deb
+          cd build-deb && cpack -G DEB
+      - name: Rassembler les fichiers à publier
+        run: |
+          mkdir -p out
+          cp build/ShadowAssistant-*-linux-*.tar.gz build-deb/shadow-assistant_*.deb out/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux
+          path: out/*
+
+  release:
+    needs: [windows, linux]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          generate_release_notes: true

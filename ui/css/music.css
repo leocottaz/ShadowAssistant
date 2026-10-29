@@ -1,0 +1,309 @@
+/* Lecteur de musique : mini-lecteur dans la barre et onglet Musique (pochette, contrôles, paroles). */
+
+:root { --m-tint: var(--accent); }
+
+/* ------------------------------------------------------------- mini-lecteur */
+
+.np {
+  position: relative;
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+  width: 182px;
+  height: 40px;
+  padding: 4px 5px 4px 4px;
+  overflow: hidden;
+  border: 1px solid var(--stroke);
+  border-radius: 20px;
+  background: linear-gradient(110deg, color-mix(in srgb, var(--m-tint) 30%, transparent), var(--glass-b) 70%);
+  box-shadow: inset 0 1px 0 var(--stroke-hi);
+  transition: background .8s, border-color .3s;
+}
+.np:hover { border-color: var(--stroke-hi); }
+
+.np-art {
+  position: relative;
+  width: 32px;
+  height: 32px;
+  flex: none;
+  overflow: hidden;
+  border-radius: 16px;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  box-shadow: 0 2px 10px -3px var(--m-tint);
+}
+.np-art img { width: 100%; height: 100%; object-fit: cover; }
+.music-playing .np-art img { animation: spin 14s linear infinite; }
+.np-art .eq {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 2px;
+  padding-bottom: 7px;
+  background: linear-gradient(transparent 40%, rgba(0, 0, 0, .45));
+  opacity: 0;
+  transition: opacity .3s;
+}
+.np-art .eq i { width: 3px; height: 4px; border-radius: 2px; background: #fff; }
+.music-playing .np-art .eq { opacity: 1; }
+.music-playing .np-art .eq i { animation: eq .9s ease-in-out infinite; }
+.music-playing .np-art .eq i:nth-child(2) { animation-delay: -.3s; }
+.music-playing .np-art .eq i:nth-child(3) { animation-delay: -.6s; }
+@keyframes eq { 0%, 100% { height: 4px; } 50% { height: 13px; } }
+
+.np-text { display: flex; flex: 1; flex-direction: column; justify-content: center; min-width: 0; overflow: hidden; line-height: 15px; }
+.np-title { width: 100%; height: 15px; overflow: hidden; font-size: 12.5px; font-weight: 600; white-space: nowrap; }
+.np-title span { display: block; width: max-content; }
+.np-title.marquee span { animation: marquee var(--dur, 8s) ease-in-out infinite alternate; }
+@keyframes marquee { 0%, 15% { transform: translateX(0); } 85%, 100% { transform: translateX(var(--dist)); } }
+.np-title.marquee { -webkit-mask-image: linear-gradient(90deg, #000 85%, transparent); }
+.np-artist { height: 14px; overflow: hidden; color: var(--fg2); font-size: 11px; line-height: 14px; white-space: nowrap; text-overflow: ellipsis; }
+
+.np-play, .m-play { position: relative; flex: none; }
+.np-play { width: 28px; height: 28px; border-radius: 50%; color: var(--fg); }
+.np-play:hover { background: var(--hover); }
+.np-play .ic { position: absolute; width: 14px; height: 14px; }
+.np-play .ic, .m-play .ic { transition: opacity .2s, transform .4s var(--spring); }
+.i-pause { opacity: 0; transform: scale(.4); }
+.playing .i-pause { opacity: 1; transform: none; }
+.playing .i-play { opacity: 0; transform: scale(.4); }
+
+.np-progress { position: absolute; left: 14px; right: 14px; bottom: 0; height: 2px; overflow: hidden; border-radius: 2px; background: var(--press); }
+.np-progress span { display: block; height: 100%; background: linear-gradient(90deg, var(--accent), var(--m-tint)); transform: scaleX(0); transform-origin: left; }
+
+/* ------------------------------------------------------------ carte musique */
+/* État « music » : la fenêtre se réduit à cette carte quand le morceau change. Sa largeur suit
+   le titre (cardWidth dans js/features/music.js, qui l'envoie au natif) ; les marges ci-dessous doivent
+   suivre ce calcul. */
+:root { --mcard-w: 380px; --mcard-h: 76px; } /* hauteur = kMusicH dans src/app/dock.cpp */
+.mcard {
+  position: fixed;
+  top: var(--inset);
+  left: 50%;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: var(--mcard-w);
+  height: var(--mcard-h);
+  padding: 0 12px 0 10px;
+  background: linear-gradient(110deg, color-mix(in srgb, var(--m-tint) 34%, transparent), transparent 75%);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  translate: -50% 0;
+  transition: opacity .3s var(--smooth), background .8s, visibility 0s .3s;
+}
+.st-music .mcard { opacity: 1; visibility: visible; pointer-events: auto; transition-delay: 0s; }
+.st-music .mcard .mcard-open { animation: rise .5s var(--smooth) both; }
+.st-music .mcard .mcard-ctl { animation: rise .5s var(--smooth) .06s both; }
+/* Le dock s'ouvre : la carte disparaît d'un coup (même place que la barre), comme la pastille. */
+.st-bar .mcard, .st-panel .mcard { transition: none; }
+.st-music .blob { opacity: 0; }
+
+/* (justify-content : la règle générale des boutons centre leur contenu) */
+.mcard-open { display: flex; flex: 1; align-items: center; justify-content: flex-start; gap: 11px; min-width: 0; height: 100%; text-align: left; }
+.mcard-art {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 54px;
+  height: 54px;
+  flex: none;
+  overflow: hidden;
+  border-radius: 12px;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  box-shadow: 0 6px 18px -6px var(--m-tint);
+  color: #fff;
+}
+.mcard-art img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.mcard-art .ic { width: 22px; }
+.mcard-text { display: flex; flex-direction: column; min-width: 0; }
+.mcard-text b, .mcard-text small { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.mcard-text b { font: 650 14px/1.3 var(--font-d); letter-spacing: -.1px; }
+.mcard-text small { color: var(--fg2); font-size: 12px; }
+
+.mcard-ctl { display: flex; flex: none; align-items: center; gap: 2px; }
+.mcard-ctl .icon-btn .ic { width: 16px; height: 16px; }
+.mcard-ctl .icon-btn:disabled { opacity: .3; pointer-events: none; }
+.mcard-play { position: relative; width: 40px; height: 40px; border-radius: 50%; transition: transform .3s var(--spring); }
+.theme-dark .mcard-play { background: #fff; color: #15151c; }
+.theme-light .mcard-play { background: #1d1d26; color: #fff; }
+.mcard-play:hover { transform: scale(1.07); }
+.mcard-play .ic { position: absolute; inset: 0; margin: auto; width: 17px; height: 17px; transition: opacity .2s, transform .4s var(--spring); }
+
+.mcard-progress { position: absolute; left: 16px; right: 16px; bottom: 6px; height: 2px; overflow: hidden; border-radius: 2px; background: var(--press); }
+.mcard-progress span { display: block; height: 100%; background: linear-gradient(90deg, var(--accent), var(--m-tint)); transform: scaleX(0); transform-origin: left; }
+
+/* La barre fait de la place au mini-lecteur. */
+.has-music .clock .sub { display: none; }
+.has-music .ask { min-width: 96px; }
+.has-music .ask kbd { display: none; }
+
+/* ------------------------------------------------------------- onglet Musique */
+
+.music-view { isolation: isolate; overflow: hidden; }
+/* Fond : la pochette floutée. Le flou coûte de la mémoire GPU, mais seulement quand
+   l'onglet Musique est affiché (les vues inactives sont en visibility: hidden). */
+.music-bg {
+  position: absolute;
+  inset: -40px;
+  z-index: -1;
+  background: center / cover no-repeat;
+  filter: blur(46px) saturate(1.5);
+  opacity: .32;
+  transition: opacity .8s, background-image .8s;
+  -webkit-mask-image: linear-gradient(180deg, #000 30%, transparent);
+}
+.theme-light .music-bg { opacity: .45; }
+.music-view.is-empty .music-bg { opacity: 0; }
+
+.music-body {
+  display: grid;
+  flex: 1;
+  min-height: 0;
+  grid-template-columns: 1fr;
+  place-items: center;
+  gap: 20px;
+}
+.music-view.with-lyrics .music-body { grid-template-columns: 228px 1fr; place-items: stretch; }
+.music-view.is-empty .music-body, .music-view.is-empty .head-actions { display: none; }
+.music-empty { display: none; flex: 1; justify-content: center; }
+.music-view.is-empty .music-empty { display: flex; }
+
+.player { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; width: 100%; max-width: 300px; }
+.with-lyrics .player { gap: 11px; }
+
+.cover {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 216px;
+  aspect-ratio: 1;
+  overflow: hidden;
+  border-radius: 20px;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 70%, #000), color-mix(in srgb, var(--accent2) 60%, #000));
+  box-shadow: 0 22px 44px -20px var(--m-tint), 0 0 0 1px var(--stroke), inset 0 1px 0 var(--stroke-hi);
+  transform: scale(.9);
+  transition: transform .7s var(--spring), box-shadow .8s;
+}
+.with-lyrics .cover { width: 196px; }
+.music-playing .cover { transform: none; box-shadow: 0 26px 56px -18px var(--m-tint), 0 0 0 1px var(--stroke), inset 0 1px 0 var(--stroke-hi); }
+.cover img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.cover::after { /* reflet du verre */
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(155deg, rgba(255, 255, 255, .28), transparent 38%);
+  pointer-events: none;
+}
+.cover-fallback { width: 54px; height: 54px; color: rgba(255, 255, 255, .7); }
+
+.m-meta { width: 100%; text-align: center; }
+.m-title, .m-artist, .m-album { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.m-title { font: 650 17px/1.25 var(--font-d); letter-spacing: -.2px; }
+.m-artist { margin-top: 2px; color: var(--fg2); font-size: 13px; }
+.m-album { color: var(--fg3); font-size: 11.5px; }
+
+.m-progress { width: 100%; }
+.m-bar { position: relative; height: 18px; display: flex; align-items: center; cursor: pointer; touch-action: none; }
+.m-bar::before { content: ""; position: absolute; left: 0; right: 0; height: 5px; border-radius: 3px; background: var(--press); transition: height .2s; }
+.m-fill {
+  position: relative;
+  height: 5px;
+  border-radius: 3px;
+  background: linear-gradient(90deg, var(--accent), var(--m-tint));
+  box-shadow: 0 0 10px -2px var(--m-tint);
+  transition: height .2s;
+}
+.m-knob {
+  position: absolute;
+  top: 50%;
+  right: -7px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, .35);
+  transform: translateY(-50%) scale(0);
+  transition: transform .35s var(--spring);
+}
+.m-bar:hover::before, .m-bar.dragging::before, .m-bar:hover .m-fill, .m-bar.dragging .m-fill { height: 7px; }
+.m-bar:hover .m-knob, .m-bar.dragging .m-knob { transform: translateY(-50%) scale(1); }
+.m-bar.disabled { cursor: default; }
+.m-bar.disabled .m-knob { display: none; }
+.m-times { display: flex; justify-content: space-between; color: var(--fg3); font-size: 11.5px; font-variant-numeric: tabular-nums; }
+
+.m-controls { display: flex; align-items: center; gap: 22px; }
+.m-skip { width: 40px; height: 40px; border-radius: 50%; color: var(--fg); }
+.m-skip .ic { width: 20px; height: 20px; }
+.m-skip:disabled { opacity: .3; cursor: default; }
+.m-play { width: 54px; height: 54px; border-radius: 50%; box-shadow: 0 10px 26px -10px var(--m-tint), inset 0 1px 0 rgba(255, 255, 255, .5); }
+.theme-dark .m-play { background: #fff; color: #15151c; }
+.theme-light .m-play { background: #1d1d26; color: #fff; }
+.m-play:hover { transform: scale(1.06); }
+.m-play .ic { position: absolute; width: 22px; height: 22px; }
+
+/* ------------------------------------------------------------------ paroles */
+
+.lyrics { display: none; flex-direction: column; min-width: 0; min-height: 0; }
+.with-lyrics .lyrics { display: flex; animation: pop .5s var(--smooth) both; }
+.lyrics-scroll {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  padding: 0 6px;
+  overflow-y: auto;
+  scrollbar-width: none;
+  -webkit-mask-image: linear-gradient(transparent, #000 18%, #000 78%, transparent);
+}
+.lyrics-scroll::-webkit-scrollbar { display: none; }
+.lyrics-pad { height: 42%; }
+.lyrics-scroll p {
+  margin: 0 0 12px;
+  color: var(--fg2);
+  font: 600 15px/1.4 var(--font-d);
+  user-select: text;
+}
+.lyrics-scroll.synced p {
+  color: var(--fg3);
+  font-size: 19px;
+  letter-spacing: -.2px;
+  cursor: pointer;
+  transform-origin: left center;
+  transition: color .4s, transform .5s var(--spring), opacity .4s, text-shadow .4s;
+}
+.lyrics-scroll.synced p:hover { color: var(--fg2); }
+.lyrics-scroll.synced p.past { opacity: .55; }
+.lyrics-scroll.synced p.cur {
+  color: var(--fg);
+  transform: scale(1.045);
+  text-shadow: 0 0 22px color-mix(in srgb, var(--m-tint) 70%, transparent);
+}
+.lyrics-scroll p.gap { color: var(--fg3); }
+
+.lyrics-msg { display: flex; flex-direction: column; justify-content: center; height: 100%; color: var(--fg2); text-align: center; }
+.lyrics-msg b { color: var(--fg); font-size: 15px; }
+.lyrics-msg p { margin: 4px 0 0; font: inherit; font-size: 12.5px; }
+
+.lyrics-loading { display: flex; flex-direction: column; justify-content: center; gap: 14px; height: 100%; }
+.lyrics-loading span {
+  height: 16px;
+  border-radius: 8px;
+  background: linear-gradient(90deg, var(--press) 20%, var(--hover) 50%, var(--press) 80%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s linear infinite;
+}
+.lyrics-loading span:nth-child(1) { width: 72%; }
+.lyrics-loading span:nth-child(2) { width: 54%; }
+.lyrics-loading span:nth-child(3) { width: 81%; }
+.lyrics-loading span:nth-child(4) { width: 46%; }
+.lyrics-loading span:nth-child(5) { width: 66%; }
+.lyrics-loading span:nth-child(6) { width: 38%; }
+
+.lyrics-credit { padding-top: 4px; color: var(--fg3); font-size: 10.5px; text-align: right; }
+.lyrics-credit a { color: var(--fg2); cursor: pointer; }
+.lyrics-credit a:hover { color: var(--fg); }
+
+#lyricsBtn.on { border-color: color-mix(in srgb, var(--accent) 60%, transparent); background: color-mix(in srgb, var(--accent) 18%, transparent); color: var(--fg); }

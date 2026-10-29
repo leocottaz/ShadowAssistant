@@ -1,0 +1,398 @@
+﻿<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Shadow Assistant</title>
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/dock.css">
+  <link rel="stylesheet" href="css/reminders.css">
+  <link rel="stylesheet" href="css/todo.css">
+  <link rel="stylesheet" href="css/chat.css">
+  <link rel="stylesheet" href="css/music.css">
+  <link rel="stylesheet" href="css/notes.css">
+  <link rel="stylesheet" href="css/timer.css">
+  <link rel="stylesheet" href="css/settings.css">
+</head>
+<body class="theme-dark st-hidden">
+  <div class="ambient" aria-hidden="true"><span class="blob b1"></span><span class="blob b2"></span><span class="blob b3"></span></div>
+
+  <!-- Languette (mode « languette ») et barre de progression (mode « masqué ») -->
+  <div class="peek" aria-hidden="true"><span></span></div>
+  <div class="strip" aria-hidden="true"><span id="stripFill"></span></div>
+
+  <!-- Mini-dock (dock rangé) : rappels qui ont sonné et/ou ligne de paroles en cours (js/dock/mini.js) -->
+  <button type="button" class="pill" id="pill">
+    <span class="pill-alert"><i data-icon="bell"></i><b id="pillCount">0</b></span>
+    <span class="pill-art"><img id="pillArt" alt="" hidden></span>
+    <span class="pill-line" id="pillLine"></span>
+  </button>
+
+  <!-- Carte musique (état « music ») : descend seule quand le morceau change (js/features/music.js) -->
+  <div class="mcard" id="mcard">
+    <button type="button" class="mcard-open" id="mcardOpen" title="Ouvrir le lecteur">
+      <span class="mcard-art"><img id="mcardArt" alt="" hidden><i data-icon="music"></i></span>
+      <span class="mcard-text"><b id="mcardTitle"></b><small id="mcardArtist"></small></span>
+    </button>
+    <div class="mcard-ctl">
+      <button type="button" class="icon-btn" id="mcardPrev" title="Précédent"><i data-icon="prev"></i></button>
+      <button type="button" class="mcard-play" id="mcardPlay" title="Lecture / pause"><i data-icon="pause" class="i-pause"></i><i data-icon="play" class="i-play"></i></button>
+      <button type="button" class="icon-btn" id="mcardNext" title="Suivant"><i data-icon="next"></i></button>
+    </div>
+    <span class="mcard-progress"><span id="mcardFill"></span></span>
+  </div>
+
+  <header class="bar" id="bar">
+    <div class="bar-left stagger" style="--d:0ms">
+      <div class="orb" id="orb"><span class="orb-core"><span class="orb-spin"></span></span><span class="badge" id="orbBadge" hidden></span></div>
+      <div class="clock">
+        <div class="time" id="clockTime">--:--</div>
+        <div class="sub" id="clockSub"></div>
+      </div>
+    </div>
+
+    <!-- Mini-lecteur (visible quand une musique est suivie) -->
+    <div class="np stagger" id="np" hidden style="--d:40ms">
+      <button type="button" class="np-art" id="npOpen" title="Ouvrir le lecteur">
+        <img id="npArt" alt="">
+        <span class="eq" aria-hidden="true"><i></i><i></i><i></i></span>
+      </button>
+      <div class="np-text">
+        <div class="np-title"><span id="npTitle"></span></div>
+        <div class="np-artist" id="npArtist"></div>
+      </div>
+      <button type="button" class="np-play" id="npPlay" title="Lecture / pause"><i data-icon="pause" class="i-pause"></i><i data-icon="play" class="i-play"></i></button>
+      <span class="np-progress"><span id="npFill"></span></span>
+    </div>
+
+    <form class="ask stagger" id="askForm" autocomplete="off" style="--d:60ms">
+      <i data-icon="sparkles"></i>
+      <input id="askInput" placeholder="Demander à Maya…" spellcheck="false">
+      <kbd>↵</kbd>
+    </form>
+
+    <div class="alert" id="alert" hidden>
+      <i data-icon="bell"></i>
+      <span class="alert-text" id="alertText"></span>
+      <button type="button" data-alert="snooze">+10 min</button>
+      <button type="button" data-alert="done">Fait</button>
+    </div>
+
+    <nav class="nav stagger" id="nav" style="--d:120ms">
+      <span class="nav-indicator" id="navIndicator"></span>
+      <button type="button" data-tab="reminders" title="Rappels (Ctrl+1)"><i data-icon="bell"></i><span class="dot" id="remDot" hidden></span></button>
+      <button type="button" data-tab="todo" title="To-do (Ctrl+2)"><i data-icon="todo"></i></button>
+      <button type="button" data-tab="music" title="Musique (Ctrl+3)"><i data-icon="music"></i></button>
+      <button type="button" data-tab="notes" title="Notes (Ctrl+4)"><i data-icon="note"></i></button>
+      <button type="button" data-tab="timer" title="Minuteur (Ctrl+5)"><i data-icon="timer"></i><span class="dot" id="timerDot" hidden></span></button>
+      <button type="button" data-tab="settings" title="Réglages (Ctrl+6)"><i data-icon="sliders"></i></button>
+    </nav>
+    <button type="button" class="icon-btn pin stagger" id="pinBtn" title="Garder le dock affiché" style="--d:170ms"><i data-icon="pin"></i></button>
+  </header>
+
+  <main class="panel" id="panel">
+    <!-- Rappels -->
+    <section class="view" data-view="reminders">
+      <div class="view-head">
+        <div><h2>Rappels</h2><p id="remSummary"></p></div>
+      </div>
+      <form class="glass rem-composer" id="remForm" autocomplete="off">
+        <input id="remText" placeholder="Me rappeler de…  ex. « appeler Paul demain à 14h »" spellcheck="false">
+        <div class="chips" id="remChips">
+          <button type="button" data-in="5">5 min</button>
+          <button type="button" data-in="15">15 min</button>
+          <button type="button" data-in="60">1 h</button>
+          <button type="button" data-at="18:00">Ce soir 18:00</button>
+          <button type="button" data-tomorrow="09:00">Demain 9:00</button>
+        </div>
+        <div class="rem-row">
+          <label class="when"><i data-icon="clock"></i><input type="datetime-local" id="remWhen"></label>
+          <select id="remRepeat">
+            <option value="none">Une fois</option>
+            <option value="daily">Chaque jour</option>
+            <option value="weekdays">Jours ouvrés</option>
+            <option value="weekly">Chaque semaine</option>
+          </select>
+          <span class="detected" id="remDetected"></span>
+          <button class="primary" type="submit"><i data-icon="plus"></i>Ajouter</button>
+        </div>
+      </form>
+      <div class="scroll" id="remList"></div>
+    </section>
+
+    <!-- To-do -->
+    <section class="view" data-view="todo">
+      <div class="view-head">
+        <div><h2>To-do</h2><p id="todoSummary"></p></div>
+        <div class="todo-progress" id="todoProgress" title="Tâches faites"><span></span></div>
+      </div>
+      <form class="glass todo-composer" id="todoForm" autocomplete="off">
+        <i data-icon="plus"></i>
+        <input id="todoInput" placeholder="Ajouter une tâche…  (Entrée)" spellcheck="false" maxlength="200">
+      </form>
+      <div class="scroll" id="todoList"></div>
+    </section>
+
+    <!-- Maya (l'assistante : Claude, ou le modèle gratuit) -->
+    <section class="view" data-view="claude">
+      <div class="view-head">
+        <div><h2>Maya</h2><p id="chatModel"></p></div>
+        <div class="head-actions"><button type="button" class="ghost" id="newChat"><i data-icon="pen"></i>Nouvelle conversation</button></div>
+      </div>
+      <div class="scroll chat" id="chat"></div>
+      <div class="glass nokey" id="noKey" hidden>
+        <i data-icon="key"></i>
+        <div><b id="noKeyTitle"></b><p id="noKeyText"></p></div>
+        <button type="button" class="primary" data-goto="settings">Réglages</button>
+      </div>
+      <form class="glass chat-composer" id="chatForm">
+        <textarea id="chatInput" rows="1" placeholder="Écris à Maya…" spellcheck="false"></textarea>
+        <button type="submit" class="send" id="sendBtn" title="Envoyer (Entrée)"><i data-icon="up" class="i-send"></i><i data-icon="stop" class="i-stop"></i></button>
+      </form>
+    </section>
+
+    <!-- Musique -->
+    <section class="view music-view" data-view="music" id="musicView">
+      <div class="music-bg" id="musicBg" aria-hidden="true"></div>
+      <div class="view-head">
+        <div><h2>Musique</h2><p id="musicSource">En attente de musique</p></div>
+        <div class="head-actions"><button type="button" class="ghost" id="lyricsBtn"><i data-icon="lyrics"></i>Paroles</button></div>
+      </div>
+      <div class="music-body" id="musicBody">
+        <div class="player">
+          <div class="cover"><img id="mArt" alt=""><i data-icon="music" class="cover-fallback"></i></div>
+          <div class="m-meta">
+            <div class="m-title" id="mTitle"></div>
+            <div class="m-artist" id="mArtist"></div>
+            <div class="m-album" id="mAlbum"></div>
+          </div>
+          <div class="m-progress">
+            <div class="m-bar" id="mBar"><div class="m-fill" id="mFill"><span class="m-knob"></span></div></div>
+            <div class="m-times"><span id="mPos">0:00</span><span id="mDur">0:00</span></div>
+          </div>
+          <div class="m-controls">
+            <button type="button" class="icon-btn m-skip" id="mPrev" title="Précédent"><i data-icon="prev"></i></button>
+            <button type="button" class="m-play" id="mPlay" title="Lecture / pause"><i data-icon="pause" class="i-pause"></i><i data-icon="play" class="i-play"></i></button>
+            <button type="button" class="icon-btn m-skip" id="mNext" title="Suivant"><i data-icon="next"></i></button>
+          </div>
+        </div>
+        <div class="lyrics" id="lyrics">
+          <div class="lyrics-scroll" id="lyricsScroll"></div>
+          <div class="lyrics-credit">Paroles fournies par <a data-url="https://lrclib.net">LRCLIB</a></div>
+        </div>
+      </div>
+      <div class="empty music-empty" id="musicEmpty">
+        <i data-icon="music"></i>
+        <b>Aucune musique en cours</b>
+        <p id="musicEmptyText">Lance un titre sur Deezer : le lecteur apparaîtra ici et dans la barre.</p>
+        <button type="button" class="ghost" id="openDeezer">Ouvrir Deezer</button>
+      </div>
+    </section>
+
+    <!-- Notes -->
+    <section class="view" data-view="notes">
+      <div class="view-head">
+        <div><h2>Notes</h2><p id="notesSummary"></p></div>
+        <div class="head-actions"><button type="button" class="primary" id="addNote"><i data-icon="plus"></i>Nouvelle note</button></div>
+      </div>
+      <div class="scroll"><div class="notes-grid" id="notesGrid"></div></div>
+    </section>
+
+    <!-- Minuteur : temps limité (compte à rebours) ou illimité (chronomètre) -->
+    <section class="view" data-view="timer" id="timerView">
+      <div class="view-head">
+        <div><h2>Minuteur</h2><p id="timerSummary"></p></div>
+        <div class="seg tm-modes" id="timerModes" style="--n:2">
+          <span class="seg-thumb"></span>
+          <button type="button" data-mode="down">Temps limité</button>
+          <button type="button" data-mode="up">Illimité</button>
+        </div>
+      </div>
+      <div class="tm-body">
+        <div class="tm-dial" id="timerDial">
+          <div class="tm-time" id="timerTime">05:00</div>
+          <div class="tm-sub" id="timerSub"></div>
+        </div>
+        <div class="tm-controls">
+          <button type="button" class="icon-btn tm-side" id="timerReset" title="Réinitialiser"><i data-icon="reset"></i></button>
+          <button type="button" class="tm-play" id="timerPlay" title="Démarrer"><i data-icon="play" class="i-play"></i><i data-icon="pause" class="i-pause"></i></button>
+          <span class="tm-side"><button type="button" class="ghost" id="timerPlus" title="Ajouter une minute">+1 min</button></span>
+        </div>
+        <div class="tm-setup" id="timerSetup">
+          <div class="chips" id="timerPresets"></div>
+          <form class="tm-custom" id="timerForm" autocomplete="off">
+            <input id="timerInput" placeholder="Autre durée : 7, 1:30, 1h20…" spellcheck="false">
+            <button type="submit" class="ghost">Lancer</button>
+          </form>
+        </div>
+      </div>
+    </section>
+
+    <!-- Réglages -->
+    <section class="view" data-view="settings">
+      <div class="view-head">
+        <div><h2>Réglages</h2><p>Personnalise ton dock</p></div>
+      </div>
+      <div class="scroll settings">
+        <div class="card glass">
+          <h3><i data-icon="sparkles"></i>Maya</h3>
+          <div class="field">
+            <label>Connexion</label>
+            <div class="seg" data-setting="backend">
+              <button type="button" data-v="pro">Abonnement Pro</button>
+              <button type="button" data-v="api">Clé API</button>
+              <button type="button" data-v="free">Gratuit</button>
+            </div>
+          </div>
+          <div id="proSection">
+            <div class="field">
+              <label>Claude Code <span class="hint">utilise ton abonnement, sans facturation API</span></label>
+              <div class="key-status" id="ccStatus"></div>
+            </div>
+            <div class="field">
+              <label>Modèle</label>
+              <div class="seg" data-setting="ccModel">
+                <button type="button" data-v="default">Par défaut</button>
+                <button type="button" data-v="opus">Opus</button>
+                <button type="button" data-v="sonnet">Sonnet</button>
+                <button type="button" data-v="haiku">Haiku</button>
+              </div>
+            </div>
+          </div>
+          <div id="apiSection">
+            <div class="field">
+              <label>Clé API Anthropic <span class="hint">facturée à l'usage, en plus de l'abonnement</span></label>
+              <div class="key-row">
+                <input type="password" id="keyInput" placeholder="sk-ant-…" spellcheck="false">
+                <button type="button" class="primary" id="keySave">Enregistrer</button>
+              </div>
+              <div class="key-status" id="keyStatus"></div>
+            </div>
+            <div class="field">
+              <label>Modèle</label>
+              <div class="seg" data-setting="model">
+                <button type="button" data-v="claude-opus-5-5">Opus 5.5</button>
+                <button type="button" data-v="claude-sonnet-5-5">Sonnet 5.5</button>
+                <button type="button" data-v="claude-haiku-5-5">Haiku 5.5</button>
+              </div>
+            </div>
+          </div>
+          <!-- Modèle gratuit : choisi comme connexion, ou en secours quand Claude est indisponible -->
+          <div id="freeSection" class="free-section">
+            <label class="toggle-row" id="freeFallbackRow">Passer au modèle gratuit si Claude est indisponible<span class="toggle"><input type="checkbox" data-setting="freeFallback"><span></span></span></label>
+            <div class="field">
+              <label>Modèle gratuit <span class="hint">tes messages partent chez ce service ; quotas limités</span></label>
+              <div class="seg" data-setting="freeService">
+                <button type="button" data-v="gemini">Google Gemini</button>
+                <button type="button" data-v="groq">Groq</button>
+              </div>
+            </div>
+            <div class="field">
+              <div class="key-row">
+                <input type="password" id="freeKeyInput" placeholder="Colle ta clé gratuite…" spellcheck="false">
+                <button type="button" class="primary" id="freeKeySave">Enregistrer</button>
+              </div>
+              <div class="key-status" id="freeKeyStatus"></div>
+            </div>
+            <div class="field" id="freeModelField">
+              <label>Modèle</label>
+              <select id="freeModel"></select>
+            </div>
+          </div>
+          <div class="field" id="effortField">
+            <label>Réflexion</label>
+            <div class="seg" data-setting="effort">
+              <button type="button" data-v="low">Rapide</button>
+              <button type="button" data-v="medium">Équilibrée</button>
+              <button type="button" data-v="high">Approfondie</button>
+            </div>
+          </div>
+          <div class="field">
+            <label>Instructions personnalisées <span class="hint">pour les nouvelles conversations</span></label>
+            <textarea id="customInstr" rows="3" placeholder="Ex. : tutoie-moi, je suis développeur, réponds très brièvement…"></textarea>
+          </div>
+        </div>
+
+        <div class="card glass">
+          <h3><i data-icon="eye"></i>Apparition</h3>
+          <div class="mode-cards" data-setting="mode">
+            <button type="button" data-v="0">
+              <span class="mini mini-hidden"><span></span></span>
+              <b>Masqué</b>
+              <small>Garde la souris en haut : une barre se remplit, puis le dock descend.</small>
+            </button>
+            <button type="button" data-v="1">
+              <span class="mini mini-peek"><span></span></span>
+              <b>Languette</b>
+              <small>Un petit bout dépasse ; le dock sort dès que la souris arrive.</small>
+            </button>
+          </div>
+          <div class="field" id="revealField">
+            <label>Temps de remplissage de la barre <output data-for="revealDelay"></output></label>
+            <input type="range" min="0" max="2000" step="50" data-setting="revealDelay">
+          </div>
+          <div class="field">
+            <label>Délai avant de se replier <output data-for="hideDelay"></output></label>
+            <input type="range" min="200" max="3000" step="50" data-setting="hideDelay">
+          </div>
+        </div>
+
+        <div class="card glass">
+          <h3><i data-icon="palette"></i>Apparence</h3>
+          <div class="field">
+            <label>Thème</label>
+            <div class="seg" data-setting="theme">
+              <button type="button" data-v="dark">Sombre</button>
+              <button type="button" data-v="light">Clair</button>
+            </div>
+          </div>
+          <div class="field">
+            <label>Couleur d'accent</label>
+            <div class="swatches" id="swatches"></div>
+          </div>
+          <div class="field">
+            <label>Largeur du dock <output data-for="width"></output></label>
+            <input type="range" min="560" max="960" step="10" data-setting="width">
+          </div>
+          <div class="field">
+            <label>Hauteur du panneau <output data-for="panelH"></output></label>
+            <input type="range" min="380" max="760" step="10" data-setting="panelH">
+          </div>
+          <label class="toggle-row">Réduire les animations<span class="toggle"><input type="checkbox" data-setting="reduceMotion"><span></span></span></label>
+        </div>
+
+        <div class="card glass">
+          <h3><i data-icon="music"></i>Musique</h3>
+          <div class="field">
+            <label>Source suivie</label>
+            <div class="seg" data-setting="musicSource">
+              <button type="button" data-v="deezer">Deezer</button>
+              <button type="button" data-v="all">Toutes les sources</button>
+            </div>
+          </div>
+          <label class="toggle-row">Montrer le morceau à chaque changement<span class="toggle"><input type="checkbox" data-setting="musicReveal"><span></span></span></label>
+        </div>
+
+        <div class="card glass">
+          <h3><i data-icon="routine"></i>Routines</h3>
+          <p class="hint card-hint">Des étapes lancées d’un coup : ouvrir tes applis, régler le volume, lancer la musique… Maya peut aussi les lancer : « lance le mode travail ».</p>
+          <div id="routines"></div>
+          <button type="button" class="ghost add-routine" id="addRoutine"><i data-icon="plus"></i>Nouvelle routine</button>
+        </div>
+
+        <div class="card glass">
+          <h3><i data-icon="cpu"></i>Système</h3>
+          <label class="toggle-row">Son des notifications<span class="toggle"><input type="checkbox" data-setting="sound"><span></span></span></label>
+          <label class="toggle-row">Lancer au démarrage de Windows<span class="toggle"><input type="checkbox" data-setting="autostart"><span></span></span></label>
+          <label class="toggle-row"><span>Économie de mémoire <span class="hint">~200 Mo de moins, animations moins fluides</span></span><span class="toggle"><input type="checkbox" data-setting="lowMemory"><span></span></span></label>
+          <div class="toggle-row">Ouvrir / fermer le dock<span><kbd>Ctrl</kbd> <kbd>Alt</kbd> <kbd>Espace</kbd></span></div>
+          <div class="toggle-row">Quitter Shadow Assistant<button type="button" class="ghost danger" id="quitBtn"><i data-icon="power"></i>Quitter</button></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div class="toast" id="toast"></div>
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

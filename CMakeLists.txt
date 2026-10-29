@@ -1,0 +1,78 @@
+cmake_minimum_required(VERSION 3.25)
+project(ShadowAssistant CXX)
+
+set(SHADOW_VERSION "dev" CACHE STRING "Version affichée dans le nom du paquet (ex. v0.1.0)")
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# Linux : cible séparée (GTK3 + WebKitGTK), voir cmake/linux.cmake.
+if (NOT WIN32)
+    include(cmake/linux.cmake)
+    return()
+endif ()
+
+# Un dossier = un domaine. Voir docs/ARCHITECTURE.md pour le rôle de chaque module.
+add_executable(ShadowAssistant WIN32
+        src/main.cpp                    # instance unique, initialisation, boucle de messages
+
+        # app/ : la fenêtre du dock et son intégration à Windows
+        src/app/dock.cpp                # fenêtre, états, animations, souris, raccourci, menu
+        src/app/tray.cpp                # icône de notification, bulles
+        src/app/autostart.cpp           # lancement au démarrage
+
+        # web/ : WebView2 et protocole avec la page
+        src/web/webview_host.cpp        # WebView2
+        src/web/bridge.cpp              # routeur des commandes de la page
+
+        # ai/ : connexion à Claude et aux modèles gratuits
+        src/ai/anthropic_http.cpp       # mode Clé API et Gratuit (HTTPS)
+        src/ai/claude_code.cpp          # mode Abonnement Pro (claude -p)
+        src/ai/api_key.cpp              # clés chiffrées (DPAPI)
+
+        # features/ : fonctionnalités qui ont besoin du natif
+        src/features/reminders.cpp      # échéances des rappels et du minuteur
+        src/features/media.cpp          # lecteur : musique en cours via Windows
+        src/features/pc.cpp             # recherche de fichiers, routines, volume
+
+        # common/ : utilitaires partagés
+        src/common/util.cpp
+        src/common/util_common.cpp)
+
+target_include_directories(ShadowAssistant PRIVATE ${CMAKE_SOURCE_DIR}/src ${CMAKE_SOURCE_DIR}/third_party/webview2/include)
+target_compile_definitions(ShadowAssistant PRIVATE UNICODE _UNICODE WIN32_LEAN_AND_MEAN NOMINMAX _WIN32_WINNT=0x0A00)
+target_link_libraries(ShadowAssistant PRIVATE dwmapi winhttp crypt32 shell32 ole32 oleaut32 user32 gdi32 advapi32 shcore runtimeobject comdlg32 uuid)
+
+if (MINGW)
+    target_compile_options(ShadowAssistant PRIVATE -municode -Wno-unknown-pragmas)
+    target_link_options(ShadowAssistant PRIVATE -municode -static-libgcc -static-libstdc++ $<$<CONFIG:Release>:-s>)
+endif ()
+
+# L'interface (HTML/CSS/JS) et le loader WebView2 doivent être à côté de l'exécutable.
+add_custom_target(shadow_assets ALL
+        COMMAND ${CMAKE_COMMAND} -E remove_directory $<TARGET_FILE_DIR:ShadowAssistant>/ui
+        COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/ui $<TARGET_FILE_DIR:ShadowAssistant>/ui
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_SOURCE_DIR}/third_party/webview2/x64/WebView2Loader.dll $<TARGET_FILE_DIR:ShadowAssistant>
+        COMMENT "Copie de l'interface et de WebView2Loader.dll")
+add_dependencies(ShadowAssistant shadow_assets)
+
+# Paquet : `cpack -G ZIP` → ShadowAssistant-<version>-windows-x64.zip
+install(TARGETS ShadowAssistant RUNTIME DESTINATION .)
+install(DIRECTORY ${CMAKE_SOURCE_DIR}/ui DESTINATION .)
+install(FILES ${CMAKE_SOURCE_DIR}/third_party/webview2/x64/WebView2Loader.dll DESTINATION .)
+set(CPACK_PACKAGE_NAME ShadowAssistant)
+set(CPACK_PACKAGE_FILE_NAME "ShadowAssistant-${SHADOW_VERSION}-windows-x64")
+set(CPACK_GENERATOR ZIP)
+set(CPACK_INCLUDE_TOPLEVEL_DIRECTORY OFF)
+
+if (MINGW)
+    get_filename_component(_MINGW_BIN ${CMAKE_CXX_COMPILER} DIRECTORY)
+    install(FILES ${_MINGW_BIN}/libwinpthread-1.dll DESTINATION .)
+endif ()
+include(CPack)
+
+if (MINGW)
+    # winpthread ne se lie pas en statique avec cette toolchain : on livre la DLL à côté.
+    get_filename_component(MINGW_BIN ${CMAKE_CXX_COMPILER} DIRECTORY)
+    add_custom_command(TARGET shadow_assets POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different ${MINGW_BIN}/libwinpthread-1.dll $<TARGET_FILE_DIR:ShadowAssistant>)
+endif ()
