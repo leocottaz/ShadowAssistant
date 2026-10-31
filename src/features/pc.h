@@ -21,10 +21,12 @@ void Search(const std::string& payload);
 void OpenFound(const std::string& path);
 
 // Routine : une étape par ligne, "type\tvaleur" — open (appli, fichier, dossier ou adresse),
-// volume (0 à 100), music (play, pause, next), wait (secondes). Exécutée dans un thread :
-// elle continue même quand le dock se range et que la page est en veille.
+// volume (0 à 100), music (play, pause, next, previous), mute (on, off, toggle), lock (verrouille
+// la session), wait (secondes). Exécutée dans un thread : elle continue même quand le dock se
+// range et que la page est en veille.
 void RunRoutine(const std::string& steps);
 void SetVolume(int percent); // volume de la sortie audio par défaut (0 à 100)
+void SetMute(const std::string& mode); // "on", "off" ou "toggle" sur la sortie audio par défaut
 // Fenêtre « Ouvrir » possédée par le dock : elle passe devant lui même s'il est
 // « toujours au premier plan ». Répond avec le chemin choisi ("" si annulé).
 #ifdef _WIN32

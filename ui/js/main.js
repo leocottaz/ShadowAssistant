@@ -13,7 +13,7 @@ import { setupRoutines } from './features/routines.js';
 import { setupTimer, renderTimer, finishTimer, syncTimer } from './features/timer.js';
 import { renderChat, focusComposer, setupChat } from './chat/chat.js';
 import { onMedia, setupMusic, connectMusic, previewLyrics, fetchLyrics, guessTrack } from './features/music.js';
-import { setupUpdater, onUpdateInit, onUpdateMessage } from './features/updater.js';
+import { setupUpdater, onUpdateInit, onUpdateMessage, showChangelog } from './features/updater.js';
 
 function onNative(m) {
   switch (m.t) {
@@ -112,7 +112,7 @@ function init() {
     // Aperçu dans un navigateur : on affiche directement le panneau. window.__preview permet
     // de simuler des messages du natif depuis la console (ex. un morceau en cours).
     document.body.classList.add('preview');
-    window.__preview = { onNative, previewLyrics, fetchLyrics, guessTrack, updater: { onUpdateInit, onUpdateMessage } };
+    window.__preview = { onNative, previewLyrics, fetchLyrics, guessTrack, updater: { onUpdateInit, onUpdateMessage, showChangelog } };
     setTimeout(() => setState('panel', {}), 60);
   }
 }

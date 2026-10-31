@@ -381,6 +381,7 @@
                 <label>Temps de remplissage de la barre <output data-for="revealDelay"></output></label>
                 <input type="range" min="0" max="2000" step="50" data-setting="revealDelay">
               </div>
+              <label class="toggle-row" id="fullscreenRevealRow"><span>Ouvrir avec la souris en plein écran <span class="hint">rappels et musique restent discrets</span></span><span class="toggle"><input type="checkbox" data-setting="fullscreenReveal"><span></span></span></label>
               <div class="toggle-row">Ouvrir / fermer le dock<span><kbd>Ctrl</kbd> <kbd>Alt</kbd> <kbd>Espace</kbd></span></div>
             </div>
             <div class="card glass">
@@ -446,6 +447,13 @@
       <button type="button" class="primary" id="updateInstall">Mettre à jour</button>
     </div>
     <div class="update-progress" id="updateBar" hidden><span id="updateFill"></span></div>
+  </div>
+
+  <!-- Nouveautés après une mise à jour (js/features/updater.js, texte de la Release GitHub) -->
+  <div class="whatsnew" id="whatsNew" role="dialog" aria-labelledby="whatsNewTitle" hidden>
+    <b id="whatsNewTitle"></b>
+    <ul id="whatsNewList"></ul>
+    <div class="whatsnew-actions"><button type="button" class="primary" id="whatsNewClose">Compris</button></div>
   </div>
 
   <div class="toast" id="toast"></div>

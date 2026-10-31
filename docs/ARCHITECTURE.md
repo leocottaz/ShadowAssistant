@@ -103,7 +103,7 @@ Modules ES (`<script type="module" src="js/main.js">`), sans dépendance externe
 | Commande | Arguments | Effet |
 | --- | --- | --- |
 | `ready` | — | La page est chargée : le natif répond `init` puis `state`. |
-| `config` | lignes `clé=valeur` | `mode`, `revealDelay`, `hideDelay`, `width`, `panelH`, `theme`, `sound`, `autostart`, `miniLyrics` (garde la page éveillée, dock caché, pendant une lecture : pilule de paroles ou carte musique). |
+| `config` | lignes `clé=valeur` | `mode`, `revealDelay`, `hideDelay`, `width`, `panelH`, `theme`, `sound`, `autostart`, `fullscreenReveal` (Windows : le bord haut ouvre le dock devant une appli plein écran), `miniLyrics` (garde la page éveillée, dock caché, pendant une lecture : pilule de paroles ou carte musique). |
 | `open` / `bar` / `hide` | — | Ouvre le panneau / replie sur la barre / masque. |
 | `pin` | `0`/`1` | Garder affiché. |
 | `hold` | ms | Empêche le repli automatique pendant ms. |
@@ -126,7 +126,7 @@ Modules ES (`<script type="module" src="js/main.js">`), sans dépendance externe
 | `update` | tag `v1.2.3` | Télécharge, vérifie et lance l'installateur de cette version → messages `update`. Le natif refuse tout ce qui n'est pas `vN.N.N`. |
 | `search` | id, mots, extension, du, au | Recherche de fichiers → `reply` avec `results` (`path`, `name`, `modified`, `size`). |
 | `openfound` | chemin | Ouvre un fichier déjà renvoyé par `search` (sinon rien). |
-| `routine` | lignes `type\tvaleur` (`open`, `volume`, `music`, `wait`) | Exécute une routine dans un thread natif. |
+| `routine` | lignes `type\tvaleur` (`open`, `volume`, `mute`, `music`, `wait`, `lock`) | Exécute une routine dans un thread natif. |
 | `volume` | 0 à 100 | Volume de la sortie audio par défaut. |
 | `pickfile` | id | Fenêtre « Ouvrir » → `reply` avec `path` (vide si annulé). |
 | `quit` | — | Quitte. |

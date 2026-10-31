@@ -44,6 +44,33 @@
 }
 .update-progress span { display: block; width: 0; height: 100%; border-radius: inherit; background: #fff; transition: width .3s var(--smooth); }
 
+/* Nouveautés après une mise à jour */
+.whatsnew {
+  position: fixed;
+  top: calc(var(--inset) + var(--bar-h) + 24px);
+  left: 50%;
+  z-index: 6;
+  width: min(440px, calc(100vw - 48px));
+  max-height: calc(var(--panel-h) - 48px);
+  overflow: auto;
+  padding: 16px 18px 12px;
+  border: 1px solid var(--stroke-hi);
+  border-radius: 20px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 55%, #1a1a24), color-mix(in srgb, var(--accent) 40%, #1a1a24));
+  box-shadow: 0 14px 34px -10px var(--shadow), 0 0 26px -8px var(--accent);
+  color: #fff;
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, 16px) scale(.94);
+  transition: opacity .3s, transform .5s var(--spring);
+}
+.st-panel .whatsnew:not([hidden]) { opacity: 1; pointer-events: auto; transform: translate(-50%, 0); }
+.whatsnew b { font-weight: 650; font-size: 15px; }
+.whatsnew ul { margin: 10px 0 0; padding-left: 18px; }
+.whatsnew li { margin: 4px 0; color: rgba(255, 255, 255, .88); font-size: 13px; line-height: 1.4; }
+.whatsnew-actions { display: flex; justify-content: flex-end; margin-top: 10px; }
+.whatsnew-actions .primary { height: 30px; background: #fff; box-shadow: none; color: #1a1a24; }
+
 /* Carte « Mises à jour » des Réglages (page Système) */
 #updateStatus { display: block; margin-top: 8px; min-height: 16px; }
 .update-row-actions { display: flex; gap: 8px; }
