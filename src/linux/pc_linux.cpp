@@ -343,6 +343,11 @@ void RunRoutine(const std::string& steps) {
                 bool playing = media::IsPlaying();
                 if ((value == "play" && !playing) || (value == "pause" && playing)) media::Command("toggle");
                 else if (value == "next") media::Command("next");
+                else if (value == "previous") media::Command("prev");
+            } else if (type == "mute") {
+                SetMute(value);
+            } else if (type == "lock") {
+                RunQuiet({"loginctl", "lock-session"});
             } else if (type == "wait") {
                 std::this_thread::sleep_for(std::chrono::seconds(std::clamp(std::atoi(value.c_str()), 0, 60)));
             }
@@ -362,6 +367,11 @@ void SetVolume(int percent) {
     } else if (RunQuiet({"pactl", "set-sink-volume", "@DEFAULT_SINK@", pct})) {
         RunQuiet({"pactl", "set-sink-mute", "@DEFAULT_SINK@", mute ? "1" : "0"});
     }
+}
+
+void SetMute(const std::string& mode) {
+    std::string v = mode == "toggle" ? "toggle" : mode == "off" ? "0" : "1";
+    if (!RunQuiet({"wpctl", "set-mute", "@DEFAULT_AUDIO_SINK@", v})) RunQuiet({"pactl", "set-sink-mute", "@DEFAULT_SINK@", v});
 }
 
 void PickFile(const std::string& id) {

@@ -1,13 +1,15 @@
-// Routines : suites d'étapes définies dans les réglages (ouvrir, volume, musique, attendre),
+// Routines : suites d'étapes définies dans les réglages (ouvrir, volume, son, musique, attendre, verrouiller),
 // lancées depuis les réglages ou par Claude (« lance le mode travail »). L'exécution se fait
 // côté natif (pc::RunRoutine) : elle continue quand le dock se range et que la page dort.
 import { $, $$, uid, esc, icon, store, toast } from '../core/util.js';
 import { ask, send } from '../core/bridge.js';
 
 let routines = store.get('routines', []);
-const STEP_TYPES = { open: 'Ouvrir', volume: 'Volume', music: 'Musique', wait: 'Attendre' };
-const MUSIC = { play: 'Lecture', pause: 'Pause', next: 'Morceau suivant' };
-const DEFAULTS = { open: '', volume: 20, music: 'play', wait: 3 };
+const STEP_TYPES = { open: 'Ouvrir', volume: 'Volume', mute: 'Son', music: 'Musique', wait: 'Attendre', lock: 'Verrouiller' };
+const MUSIC = { play: 'Lecture', pause: 'Pause', next: 'Morceau suivant', previous: 'Morceau précédent' };
+const MUTE = { on: 'Couper le son', off: 'Rétablir le son', toggle: 'Basculer' };
+const DEFAULTS = { open: '', volume: 20, mute: 'on', music: 'play', wait: 3, lock: 'now' };
+const CHOICES = { music: MUSIC, mute: MUTE }; // étapes à menu déroulant
 
 const norm = (s) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/^(le |la |l'|mode |routine )+/g, '').trim();
 let saveTimer;
@@ -42,8 +44,10 @@ function stepHTML(s, i) {
       <button type="button" class="ghost step-pick" data-act="pick" title="Choisir un fichier">Parcourir…</button>`;
   } else if (s.type === 'volume') {
     control = `<input class="step-value" type="range" min="0" max="100" step="5" value="${+s.value || 0}" style="--v:${+s.value || 0}%"><output>${+s.value || 0} %</output>`;
-  } else if (s.type === 'music') {
-    control = `<select class="step-value">${opts(MUSIC, s.value)}</select>`;
+  } else if (CHOICES[s.type]) {
+    control = `<select class="step-value">${opts(CHOICES[s.type], s.value)}</select>`;
+  } else if (s.type === 'lock') {
+    control = '<span class="hint">Verrouille la session (à mettre en dernier)</span>';
   } else {
     control = `<input class="step-value step-secs" type="number" min="0" max="60" value="${+s.value || 0}"><span class="hint">secondes</span>`;
   }
@@ -91,7 +95,7 @@ function setupRoutines() {
     if (e.target.classList.contains('routine-name')) r.name = e.target.value;
     else if (e.target.classList.contains('step-value') && i >= 0) {
       const s = r.steps[i];
-      s.value = s.type === 'open' || s.type === 'music' ? e.target.value : +e.target.value;
+      s.value = s.type === 'open' || CHOICES[s.type] ? e.target.value : +e.target.value;
       if (s.type === 'volume') {
         e.target.style.setProperty('--v', `${s.value}%`);
         $('output', stepEl).textContent = `${s.value} %`;
@@ -107,7 +111,7 @@ function setupRoutines() {
       r.steps[i] = { type: e.target.value, value: DEFAULTS[e.target.value] };
       save();
       renderRoutines();
-    } else if (e.target.tagName === 'SELECT') { // menu « Musique »
+    } else if (e.target.tagName === 'SELECT') { // menus « Musique » et « Son »
       r.steps[i].value = e.target.value;
       save();
     }

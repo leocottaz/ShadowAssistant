@@ -126,7 +126,7 @@ Modules ES (`<script type="module" src="js/main.js">`), sans dépendance externe
 | `update` | tag `v1.2.3` | Télécharge, vérifie et lance l'installateur de cette version → messages `update`. Le natif refuse tout ce qui n'est pas `vN.N.N`. |
 | `search` | id, mots, extension, du, au | Recherche de fichiers → `reply` avec `results` (`path`, `name`, `modified`, `size`). |
 | `openfound` | chemin | Ouvre un fichier déjà renvoyé par `search` (sinon rien). |
-| `routine` | lignes `type\tvaleur` (`open`, `volume`, `music`, `wait`) | Exécute une routine dans un thread natif. |
+| `routine` | lignes `type\tvaleur` (`open`, `volume`, `mute`, `music`, `wait`, `lock`) | Exécute une routine dans un thread natif. |
 | `volume` | 0 à 100 | Volume de la sortie audio par défaut. |
 | `pickfile` | id | Fenêtre « Ouvrir » → `reply` avec `path` (vide si annulé). |
 | `quit` | — | Quitte. |
