@@ -1,7 +1,7 @@
 // Lecteur : affiche la musique suivie par le natif (src/features/media.cpp, {"t":"media"}),
 // la pilote (lecture/pause, piste suivante/précédente, position) et affiche les
 // paroles, récupérées à la demande sur LRCLIB et synchronisées quand c'est possible.
-import { $, $$, esc, clamp } from '../core/util.js';
+import { $, $$, esc, clamp, store } from '../core/util.js';
 import { send } from '../core/bridge.js';
 import { settings, setSetting, onSettingChange } from '../core/settings.js';
 import { S } from '../core/state.js';
@@ -13,7 +13,7 @@ const M = {
   active: false, app: '', title: '', artist: '', album: '', status: 'stopped',
   pos: 0, dur: 0, at: 0, canNext: false, canPrev: false, canSeek: false, art: '',
 };
-const lyrics = { key: '', state: 'idle', lines: [], synced: false, current: -1 };
+const lyrics = { key: '', run: null, dur: 0, state: 'idle', lines: [], synced: false, current: -1 };
 const lyricsCache = new Map();
 let seeking = null; // position (ms) pendant qu'on fait glisser la barre
 
@@ -47,6 +47,7 @@ function sourceName(app) {
 
 function onMedia(m) {
   const prevKey = trackKey(M);
+  const prevArt = M.art;
   if (!m.active) {
     Object.assign(M, { active: false, status: 'stopped' });
   } else {
@@ -58,6 +59,12 @@ function onMedia(m) {
   if (changed) {
     applyArt();
     if (M.active) loadLyrics();
+  } else if (M.art !== prevArt) {
+    applyArt(); // la pochette arrive parfois après le titre
+  } else if (M.active && M.dur > 0 && Math.abs(M.dur - lyrics.dur) > 8000) {
+    // Titre et durée ne changent pas au même instant : la recherche est partie avec une durée périmée.
+    lyricsCache.delete(trackKey(M));
+    loadLyrics();
   }
   render();
   // Nouveau morceau (ou musique qui démarre) : la carte musique descend un instant pour le montrer.
@@ -85,10 +92,22 @@ function applyArt() {
   tintFromArt();
 }
 
+// Accent tiré de la pochette : même teinte, mais saturation et luminosité bornées pour que le texte
+// blanc des boutons et les icônes restent lisibles sur le verre (une pochette grise ou claire donnerait un bouton pâle).
+function accentFrom(r, g, b, hueShift) {
+  r /= 255; g /= 255; b /= 255;
+  const max = Math.max(r, g, b), min = Math.min(r, g, b), d = max - min;
+  let h = 0;
+  if (d) h = max === r ? ((g - b) / d + 6) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  const l = (max + min) / 2, sat = d ? d / (1 - Math.abs(2 * l - 1)) : 0;
+  const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+  return `hsl(${Math.round(h * 60 + hueShift) % 360}, ${Math.round(clamp(sat * 1.3, 0, 0.75) * 100)}%, ${Math.round(clamp(l + 0.05, 0.40, 0.47) * 100)}%)`;
+}
+
 // Couleur dominante de la pochette : teinte le lecteur et le mini-lecteur.
 function tintFromArt() {
   const root = document.documentElement.style;
-  if (!M.art) { root.removeProperty('--m-tint'); return; }
+  if (!M.art) { for (const k of ['--m-tint', '--m-accent', '--m-accent2']) root.removeProperty(k); return; }
   const img = new Image();
   img.onload = () => {
     const c = document.createElement('canvas');
@@ -103,6 +122,8 @@ function tintFromArt() {
       r += d[i] * weight; gr += d[i + 1] * weight; b += d[i + 2] * weight; w += weight;
     }
     root.setProperty('--m-tint', `rgb(${Math.round(r / w)}, ${Math.round(gr / w)}, ${Math.round(b / w)})`);
+    root.setProperty('--m-accent', accentFrom(r / w, gr / w, b / w, 0));
+    root.setProperty('--m-accent2', accentFrom(r / w, gr / w, b / w, 32));
   };
   img.src = M.art;
 }
@@ -156,7 +177,7 @@ function cardWidth() {
 
 // Mini-dock (js/dock/mini.js) : ligne en cours quand on écoute avec les paroles activées et synchronisées.
 function updateMini() {
-  const live = isPlaying() && settings.lyricsOpen && lyrics.state === 'ready' && lyrics.synced;
+  const live = isPlaying() && settings.lyricsOpen && settings.miniLyrics && lyrics.state === 'ready' && lyrics.synced;
   const line = live ? lyrics.lines[lyrics.current] : null;
   setMiniLyric(live ? { text: line?.text || '♪', gap: !line?.text } : null);
 }
@@ -200,12 +221,13 @@ function ensureLoop() {
 // ------------------------------------------------------------------ paroles (LRCLIB)
 
 // Retire ce qui gêne la recherche : « (feat. …) », « - Remastered 2011 », « (Radio Edit) », « [Live] »…
-const VARIANT = 'remaster|version|edit|live|mix|mono|stereo|deluxe|bonus|explicit|acousti|extended|instrumental';
+const VARIANT = 'remaster|version|edit|live|mix|mono|stereo|deluxe|bonus|explicit|clean|acousti|extended|instrumental'
+  + '|from|sped|slowed|reverb|soundtrack|bande originale|extrait';
 function cleanTitle(t) {
   const out = t.replace(/\s*[([](feat|ft|featuring|with|avec)\b\.?[^)\]]*[)\]]/gi, '')
     .replace(/\s+(feat|ft|featuring)\.?\s.*$/i, '')
-    .replace(new RegExp(`\\s*[([][^)\\]]*(${VARIANT})[^)\\]]*[)\\]]`, 'gi'), '')
-    .replace(new RegExp(`\\s+[-–]\\s+.*(${VARIANT}).*$`, 'i'), '')
+    .replace(new RegExp(`\\s*[([][^)\\]]*\\b(${VARIANT})[^)\\]]*[)\\]]`, 'gi'), '')
+    .replace(new RegExp(`\\s+[-–]\\s+.*\\b(${VARIANT}).*$`, 'i'), '')
     .replace(/\s*\[[^\]]*\]/g, '')
     .trim();
   return out || t.trim();
@@ -230,25 +252,33 @@ function parseLrc(text) {
   return out.sort((a, b) => a.t - b.t);
 }
 
-// LRCLIB répond souvent 503 (« server busy ») : on réessaie un peu avant d'abandonner.
-// null = introuvable (404).
+const sleep = (ms) => new Promise((ok) => setTimeout(ok, ms));
+const LRCLIB_CLIENT = 'ShadowAssistant (https://github.com/leocottaz/ShadowAssistant)';
+const LRCLIB_GAP = 350;                       // ms entre deux requêtes (conseil de la doc : 200 à 500)
+const LRCLIB_PATIENCE = [0, 5, 15, 40, 90];   // s avant chaque passe : les 503 durent jusqu'à une minute ou deux
+let lrclibNext = 0;                           // heure de la prochaine requête permise
+
+// Une requête à la fois, en respectant Retry-After (429 et 503). null = introuvable (404).
+// Pas de relance ici : fetchLyrics refait une passe plus tard sur tout ce qui a échoué.
 async function lrclib(path, params) {
+  const at = Math.max(Date.now(), lrclibNext);
+  lrclibNext = at + LRCLIB_GAP;
+  await sleep(at - Date.now());
   const url = `https://lrclib.net/api/${path}?${new URLSearchParams(params)}`;
-  for (let i = 0; ; i++) {
-    const r = await fetch(url);
-    if ((r.status === 503 || r.status === 429) && i < 3) {
-      await new Promise((ok) => setTimeout(ok, 1200 * (i + 1)));
-      continue;
-    }
-    if (r.status === 404) return null;
-    if (!r.ok) throw new Error(`LRCLIB ${r.status}`);
-    return r.json();
+  const r = await fetch(url, { headers: { 'Lrclib-Client': LRCLIB_CLIENT } });
+  if (r.status === 404) return null;
+  if (r.status === 429 || r.status === 503) {
+    const wait = (parseFloat(r.headers.get('Retry-After')) || 1) * 1000 * (1 + Math.random() * 0.3);
+    lrclibNext = Math.max(lrclibNext, Date.now() + wait);
   }
+  if (!r.ok) throw new Error(`LRCLIB ${r.status}`);
+  return r.json();
 }
 
 // Plusieurs essais du plus précis au plus large ; on s'arrête dès qu'une version a la
 // bonne durée (paroles synchronisées). Sinon, on garde la meilleure version trouvée
-// mais sans synchronisation, plutôt que d'annoncer « introuvables ».
+// mais sans synchronisation, plutôt que d'annoncer « introuvables ». Ce qui échoue
+// (serveur surchargé) est rejoué aux passes suivantes tant que le morceau n'a pas changé.
 async function fetchLyrics(track) {
   const secs = Math.round(track.dur / 1000);
   const title = cleanTitle(track.title);
@@ -259,45 +289,69 @@ async function fetchLyrics(track) {
   const sameTitle = (x) => { const c = norm(cleanTitle(x.trackName || '')); return c === nt || c.startsWith(`${nt} `) || nt.startsWith(`${c} `); };
   const sameArtist = (x) => { const c = norm(x.artistName); return c.includes(na) || (c && na.includes(c)); };
 
-  const attempts = [];
-  if (secs > 0) {
-    attempts.push(['get', { track_name: track.title, artist_name: track.artist, album_name: track.album, duration: secs }]);
-    if (title !== track.title || artist !== track.artist) attempts.push(['get', { track_name: title, artist_name: artist, duration: secs }]);
-  }
-  attempts.push(['search', { track_name: title, artist_name: track.artist }]);
-  if (artist !== track.artist) attempts.push(['search', { track_name: title, artist_name: artist }]);
-  attempts.push(['search', { q: `${title} ${artist}` }]);
-  attempts.push(['search', { track_name: title }]);
+  // Même morceau, autre artiste affiché (ex. nom transcrit) : la durée exacte suffit.
+  const sameTrack = (x) => sameTitle(x) && (sameArtist(x) || (secs > 0 && diff(x) <= 2));
+  const plain = (s) => s.normalize('NFD').replace(/\p{M}/gu, '').replace(/['’]/g, '');
 
-  let fallback = null, failures = 0;
-  for (const [path, params] of attempts) {
-    if (lyrics.key !== track.key) throw new Error('piste changée'); // pas de mise en cache
-    let res;
-    try { res = await lrclib(path, params); } catch { failures++; continue; }
-    const list = (Array.isArray(res) ? res : res ? [res] : []).filter(hasText);
-    // Les recherches larges ramènent d'autres morceaux : on vérifie titre et artiste.
-    const ok = (path === 'get' || params.artist_name ? list : list.filter((x) => sameTitle(x) && sameArtist(x)))
-      .sort((a, b) => diff(a) - diff(b));
-    const best = ok.find((x) => x.syncedLyrics || x.instrumental);
-    if (best && diff(best) <= 8) return best;
-    if (ok[0] && (!fallback || diff(ok[0]) < diff(fallback))) fallback = ok[0];
+  let pending = [];
+  if (secs > 0 && secs <= 3600 && artist) { // bornes de /api/get
+    const exact = { track_name: track.title, artist_name: track.artist, duration: secs };
+    if (track.album) exact.album_name = track.album;
+    pending.push(['get', exact]);
+    if (title !== track.title || artist !== track.artist) pending.push(['get', { track_name: title, artist_name: artist, duration: secs }]);
+  }
+  if (track.artist) pending.push(['search', { track_name: title, artist_name: track.artist }]);
+  if (artist !== track.artist) pending.push(['search', { track_name: title, artist_name: artist }]);
+  if (plain(title) !== title || plain(artist) !== artist) pending.push(['search', { track_name: plain(title), artist_name: plain(artist) }]);
+  pending.push(['search', { q: `${title} ${artist}`.trim() }]);
+  pending.push(['search', { track_name: title }]);
+
+  let fallback = null;
+  for (let pass = 0; pass < LRCLIB_PATIENCE.length && pending.length; pass++) {
+    await sleep(LRCLIB_PATIENCE[pass] * 1000);
+    const failed = [];
+    for (const attempt of pending) {
+      if (track.stale()) throw new Error('piste changée'); // pas de mise en cache
+      const [path, params] = attempt;
+      let res;
+      try { res = await lrclib(path, params); } catch { failed.push(attempt); continue; }
+      const list = (Array.isArray(res) ? res : res ? [res] : []).filter(hasText);
+      // Les recherches larges ramènent d'autres morceaux : on vérifie titre et artiste.
+      const ok = (path === 'get' || params.artist_name ? list : list.filter(sameTrack))
+        .sort((a, b) => diff(a) - diff(b));
+      const best = ok.find((x) => x.syncedLyrics || x.instrumental);
+      if (best && diff(best) <= 8) return best;
+      if (ok[0] && (!fallback || diff(ok[0]) < diff(fallback))) fallback = ok[0];
+    }
+    pending = failed;
+    if (fallback && pass >= 1) break; // on a de quoi afficher : inutile de faire attendre plus
   }
   if (fallback) return { ...fallback, syncedLyrics: null, plainLyrics: fallback.plainLyrics || stripLrc(fallback.syncedLyrics) };
-  if (failures) throw new Error('LRCLIB injoignable'); // erreur : pas de « introuvable » mis en cache
+  if (pending.length) throw new Error('LRCLIB injoignable'); // erreur : pas de « introuvable » mis en cache
   return null;
 }
 
 const stripLrc = (text) => (text || '').split(/\r?\n/).map((l) => l.replace(/\[[^\]]*\]/g, '').trim()).join('\n');
 
+// Garde la trace des morceaux sans paroles synchronisées (métadonnées seulement, jamais les
+// paroles) pour comprendre les échecs réels : store `lyricsMisses`, lisible avec cdp.ps1.
+function noteMiss(track, state) {
+  const { title, artist, album, dur } = track;
+  const misses = store.get('lyricsMisses', []).filter((m) => m.title !== title || m.artist !== artist);
+  store.set('lyricsMisses', [{ title, artist, album, dur, state, at: Date.now() }, ...misses].slice(0, 40));
+}
+
 async function loadLyrics() {
   const key = trackKey(M);
-  const track = { key, title: M.title, artist: M.artist, album: M.album, dur: M.dur };
-  Object.assign(lyrics, { key, state: 'loading', lines: [], synced: false, current: -1 });
+  const run = {}; // chaque chargement a son jeton : un ancien ne doit plus rien écrire
+  const track = { title: M.title, artist: M.artist, album: M.album, dur: M.dur, stale: () => lyrics.run !== run };
+  Object.assign(lyrics, { key, run, dur: M.dur, state: 'loading', lines: [], synced: false, current: -1 });
   renderLyrics();
   let result = lyricsCache.get(key);
   if (!result) {
     try {
       const data = await fetchLyrics(track);
+      if (track.stale()) return;
       if (!data) result = { state: 'none' };
       else if (data.instrumental) result = { state: 'instrumental' };
       else if (data.syncedLyrics) result = { state: 'ready', synced: true, lines: parseLrc(data.syncedLyrics) };
@@ -307,8 +361,10 @@ async function loadLyrics() {
     } catch {
       result = { state: 'error' };
     }
+    if (track.stale()) return;
+    if (!result.synced && result.state !== 'instrumental') noteMiss(track, result.state);
   }
-  if (lyrics.key !== key) return; // la piste a changé entre-temps
+  if (track.stale()) return; // la piste a changé entre-temps
   Object.assign(lyrics, { synced: false, lines: [], ...result, current: -1 });
   renderLyrics();
   syncLyrics(currentPos(), true);
@@ -420,6 +476,7 @@ function setupMusic() {
   setupSeekBar();
   onSettingChange((key, value) => {
     if (key === 'musicSource') { send('media', 'sources', value); render(); }
+    if (key === 'miniLyrics') updateMini();
   });
   render();
 }
@@ -442,10 +499,10 @@ function nowPlaying() {
 
 // Aperçu navigateur uniquement : injecte des paroles factices pour tester l'affichage.
 function previewLyrics(lines, synced = true) {
-  Object.assign(lyrics, { key: trackKey(M), state: 'ready', synced, lines, current: -1 });
+  Object.assign(lyrics, { key: trackKey(M), dur: M.dur, state: 'ready', synced, lines, current: -1 });
   lyricsCache.set(lyrics.key, { state: 'ready', synced, lines });
   renderLyrics();
   syncLyrics(currentPos(), true);
 }
 
-export { onMedia, setupMusic, connectMusic, previewLyrics, nowPlaying, ensureLoop as resumeMusicLoop };
+export { onMedia, setupMusic, connectMusic, previewLyrics, fetchLyrics, cleanTitle, nowPlaying, ensureLoop as resumeMusicLoop };

@@ -11,6 +11,8 @@ if (NOT WIN32)
     return()
 endif ()
 
+enable_language(RC)
+
 # Un dossier = un domaine. Voir docs/ARCHITECTURE.md pour le rôle de chaque module.
 add_executable(ShadowAssistant WIN32
         src/main.cpp                    # instance unique, initialisation, boucle de messages
@@ -19,6 +21,7 @@ add_executable(ShadowAssistant WIN32
         src/app/dock.cpp                # fenêtre, états, animations, souris, raccourci, menu
         src/app/tray.cpp                # icône de notification, bulles
         src/app/autostart.cpp           # lancement au démarrage
+        src/app/shadow-assistant.rc     # icône de l'exécutable
 
         # web/ : WebView2 et protocole avec la page
         src/web/webview_host.cpp        # WebView2
@@ -37,6 +40,7 @@ add_executable(ShadowAssistant WIN32
         # common/ : utilitaires partagés
         src/common/util.cpp
         src/common/util_common.cpp)
+set_source_files_properties(src/app/shadow-assistant.rc PROPERTIES OBJECT_DEPENDS ${CMAKE_SOURCE_DIR}/src/app/shadow-assistant.ico)
 
 target_include_directories(ShadowAssistant PRIVATE ${CMAKE_SOURCE_DIR}/src ${CMAKE_SOURCE_DIR}/third_party/webview2/include)
 target_compile_definitions(ShadowAssistant PRIVATE UNICODE _UNICODE WIN32_LEAN_AND_MEAN NOMINMAX _WIN32_WINNT=0x0A00)

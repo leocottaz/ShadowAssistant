@@ -5,7 +5,7 @@ Le projet est en français : commentaires, interface, messages de commit.
 
 ## 1. Installer
 
-- **Windows** : Windows 10/11 x64 avec le runtime WebView2 (déjà présent sur Windows 11). CMake ≥ 3.25, Ninja et MinGW-w64 (`g++` C++20). Le plus simple : **CLion**, qui fournit les trois. MSVC n'est pas testé.
+- **Windows** : Windows 10/11 x64 avec le runtime WebView2 (déjà présent sur Windows 11). CMake ≥ 3.25, Ninja et MinGW-w64 (`g++` C++20). Le plus simple : [MSYS2](https://www.msys2.org), la chaîne utilisée par la CI. Dans son terminal **MINGW64** : `pacman -S mingw-w64-x86_64-gcc mingw-w64-x86_64-cmake mingw-w64-x86_64-ninja mingw-w64-x86_64-gdb`, puis ajoute `C:\msys64\mingw64\bin` à ton `PATH`. N'importe quel éditeur convient. MSVC n'est pas testé.
 - **Linux** : CMake ≥ 3.25, Ninja, `g++` (C++20), `pkg-config` et les paquets `libgtk-3-dev libwebkit2gtk-4.1-dev libcurl4-openssl-dev libx11-dev` (Arch : `gtk3 webkit2gtk-4.1 curl libx11`). Sous Windows, WSL avec WSLg convient pour compiler et lancer.
 
 ### Compiler
@@ -26,19 +26,19 @@ Les installateurs (`installer/`) se construisent comme dans le README (section �
 
 Une modification de `src/` doit **compiler sur les deux plateformes** (la CI le vérifie). Un module partagé ne contient pas de code Windows hors de `#ifdef _WIN32` ; sinon, il a une version dans `src/linux/`.
 
-Si `g++` et `ninja` ne sont pas dans ton `PATH`, crée un `CMakeUserPresets.json` (ignoré par git) qui pointe vers ta toolchain, par exemple avec CLion :
+Si `g++` et `ninja` ne sont pas dans ton `PATH`, crée un `CMakeUserPresets.json` (ignoré par git) qui pointe vers ta toolchain, par exemple avec MSYS2 :
 
 ```json
 {
   "version": 6,
   "configurePresets": [{
-    "name": "clion-release", "inherits": "release",
+    "name": "local-release", "inherits": "release",
     "cacheVariables": {
-      "CMAKE_CXX_COMPILER": "C:/Program Files/JetBrains/CLion <version>/bin/mingw/bin/g++.exe",
-      "CMAKE_MAKE_PROGRAM": "C:/Program Files/JetBrains/CLion <version>/bin/ninja/win/x64/ninja.exe"
+      "CMAKE_CXX_COMPILER": "C:/msys64/mingw64/bin/g++.exe",
+      "CMAKE_MAKE_PROGRAM": "C:/msys64/mingw64/bin/ninja.exe"
     }
   }],
-  "buildPresets": [{ "name": "clion-release", "configurePreset": "clion-release" }]
+  "buildPresets": [{ "name": "local-release", "configurePreset": "local-release" }]
 }
 ```
 
@@ -53,7 +53,7 @@ Les deux côtés sont rangés par domaine. Commence toujours par l'interface : l
 | --- | --- |
 | Changer l'apparence d'un onglet | `ui/css/<onglet>.css`, `ui/index.html` |
 | Ajouter une fonctionnalité à l'interface | `ui/js/features/<nom>.js` (+ `ui/css/<nom>.css`), branchée dans `ui/js/main.js` |
-| Ajouter un réglage | `DEFAULTS` dans `ui/js/core/settings.js` + `data-setting` dans `index.html` |
+| Ajouter un réglage | `DEFAULTS` dans `ui/js/core/settings.js` + `data-setting` dans la bonne page (`.set-page`) de `index.html` |
 | Apprendre un nouvel outil à Claude | `ui/js/chat/tools.js`, `prompts.js`, `pro.js` |
 | Demander quelque chose à Windows | un module dans `src/features/`, une commande dans `src/web/bridge.cpp` |
 | La même chose sous Linux | `src/linux/<module>_linux.cpp` (même interface), la commande dans `src/linux/bridge_linux.cpp`, la ligne dans `cmake/linux.cmake` |

@@ -2,7 +2,7 @@
 // Le transport dépend du mode : chat/api.js (clé API) ou chat/pro.js (Claude Code).
 import { $, uid, esc, icon, store, toast, autosize } from '../core/util.js';
 import { bridge, send } from '../core/bridge.js';
-import { settings } from '../core/settings.js';
+import { settings, openSettingsPage } from '../core/settings.js';
 import { S } from '../core/state.js';
 import { fmtWhen } from '../core/format.js';
 import { renderKey, updateNoKey } from './connection.js';
@@ -353,7 +353,7 @@ function setupChat() {
       navigator.clipboard?.writeText(text).then(() => toast('Copié'), () => toast('Copie impossible'));
     }
   });
-  $('[data-goto="settings"]').addEventListener('click', () => switchTab('settings'));
+  $('[data-goto="settings"]').addEventListener('click', () => { switchTab('settings'); openSettingsPage('maya'); });
 }
 
 export {

@@ -83,13 +83,13 @@ const TOOLS = [
     name: 'search_files',
     description: "Cherche des fichiers sur le PC de l'utilisateur (documents, téléchargements, bureau…) dans l'index de Windows. "
       + 'Mots-clés cherchés dans le nom et le contenu ; dates de modification (proches de la date de téléchargement) à calculer '
-      + "depuis le bloc [Contexte]. Retourne une liste numérotée (15 au plus, les plus récents d'abord) : présente-la "
+      + "depuis le bloc [Contexte]. Retourne une liste numérotée (15 au plus, les noms qui correspondent le mieux d'abord) : présente-la "
       + "brièvement à l'utilisateur et demande-lui lequel ouvrir.",
     input_schema: {
       type: 'object',
       properties: {
         words: { type: 'string', description: 'Mots-clés séparés par des espaces, ex. « facture EDF » (vide = aucun).' },
-        extension: { type: 'string', description: 'Extension sans le point, ex. « pdf » (vide = toutes).' },
+        extension: { type: 'string', description: 'Extension sans le point, ex. « pdf » ; plusieurs possibles : « pdf docx » (vide = toutes).' },
         from: { type: 'string', description: 'Modifié à partir du (AAAA-MM-JJ inclus), vide = pas de limite.' },
         to: { type: 'string', description: "Modifié jusqu'au (AAAA-MM-JJ inclus), vide = pas de limite." },
       },

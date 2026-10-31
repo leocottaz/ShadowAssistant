@@ -12,15 +12,15 @@ const ACCENTS = {
 };
 
 const DEFAULTS = {
-  mode: 0, revealDelay: 550, hideDelay: 700, width: 680, panelH: 540,
+  mode: 0, revealDelay: 550, hideDelay: 700, width: 680, panelH: 540, flare: 18,
   theme: 'dark', accent: 'violet', reduceMotion: false, sound: true, autostart: false, lowMemory: true,
   backend: 'pro', ccModel: 'default',
   freeService: 'gemini', freeModel: '', freeFallback: true, // modèle gratuit ('' = automatique)
-  musicSource: 'deezer', musicReveal: true, lyricsOpen: true,
-  model: 'claude-opus-5-5', effort: 'medium', customInstr: '', lastTab: 'claude',
+  musicSource: 'deezer', musicReveal: true, lyricsOpen: true, miniLyrics: true, musicTint: true,
+  model: 'claude-opus-5-5', effort: 'medium', customInstr: '', lastTab: 'claude', settingsPage: 'maya',
 };
-const NUMERIC = new Set(['mode', 'revealDelay', 'hideDelay', 'width', 'panelH']);
-const NATIVE_KEYS = new Set(['mode', 'revealDelay', 'hideDelay', 'width', 'panelH', 'theme', 'sound', 'autostart', 'lyricsOpen']);
+const NUMERIC = new Set(['mode', 'revealDelay', 'hideDelay', 'width', 'panelH', 'flare']);
+const NATIVE_KEYS = new Set(['mode', 'revealDelay', 'hideDelay', 'width', 'panelH', 'theme', 'sound', 'autostart', 'lyricsOpen', 'miniLyrics', 'musicReveal']);
 const MODEL_NAMES = { 'claude-opus-5-5': 'Opus 5.5', 'claude-sonnet-5-5': 'Sonnet 5.5', 'claude-haiku-5-5': 'Haiku 5.5' };
 const CC_MODEL_NAMES = { default: 'modèle par défaut', opus: 'Opus', sonnet: 'Sonnet', haiku: 'Haiku' };
 const EFFORT_NAMES = { low: 'rapide', medium: 'équilibrée', high: 'approfondie' };
@@ -33,7 +33,8 @@ function sendConfig() {
     `mode=${settings.mode}`, `revealDelay=${settings.revealDelay}`, `hideDelay=${settings.hideDelay}`,
     `width=${settings.width}`, `panelH=${settings.panelH}`, `theme=${settings.theme}`,
     `sound=${settings.sound ? 1 : 0}`, `autostart=${settings.autostart ? 1 : 0}`,
-    `miniLyrics=${settings.lyricsOpen ? 1 : 0}`, // le natif garde la page éveillée pour le mini-dock
+    // Le natif garde la page éveillée pendant une lecture : elle seule demande le mini-dock et la carte musique.
+    `miniLyrics=${(settings.lyricsOpen && settings.miniLyrics) || settings.musicReveal ? 1 : 0}`,
   ].join('\n'));
 }
 
@@ -42,11 +43,14 @@ function applyAppearance() {
   b.classList.toggle('theme-dark', settings.theme !== 'light');
   b.classList.toggle('theme-light', settings.theme === 'light');
   b.classList.toggle('reduce', !!settings.reduceMotion);
+  b.classList.toggle('tint-music', !!settings.musicTint); // couleurs du dock = pochette (music.css)
   const [a, a2] = ACCENTS[settings.accent] || ACCENTS.violet;
   const root = document.documentElement.style;
   root.setProperty('--accent', a);
   root.setProperty('--accent2', a2);
   root.setProperty('--panel-h', settings.panelH + 'px');
+  root.setProperty('--dock-w', settings.width + 'px');
+  root.setProperty('--flare', settings.flare + 'px');
   const effort = `réflexion ${EFFORT_NAMES[settings.effort] || settings.effort}`;
   $('#chatModel').textContent = settings.backend === 'pro'
     ? `Abonnement Pro · ${CC_MODEL_NAMES[settings.ccModel] || settings.ccModel} · ${effort}`
@@ -75,6 +79,7 @@ const RANGE_FORMAT = {
   hideDelay: (v) => `${(v / 1000).toFixed(2).replace('.', ',')} s`,
   width: (v) => `${v} px`,
   panelH: (v) => `${v} px`,
+  flare: (v) => (v === 0 ? 'aucun' : `${v} px`),
 };
 
 function paintRange(input) {
@@ -84,7 +89,18 @@ function paintRange(input) {
   if (out) out.textContent = RANGE_FORMAT[input.dataset.setting]?.(v) ?? v;
 }
 
+function openSettingsPage(page) {
+  setSetting('settingsPage', page);
+  $('#settingsBody').scrollTop = 0;
+}
+
 function renderSettings() {
+  $$('.set-page').forEach((p) => { p.hidden = p.dataset.page !== settings.settingsPage; });
+  $$('#settingsNav button').forEach((b) => {
+    const on = b.dataset.page === settings.settingsPage;
+    b.classList.toggle('on', on);
+    b.toggleAttribute('aria-current', on);
+  });
   $$('.seg[data-setting], .mode-cards[data-setting]').forEach((seg) => {
     const buttons = $$('button[data-v]', seg);
     const idx = Math.max(0, buttons.findIndex((b) => String(settings[seg.dataset.setting]) === b.dataset.v));
@@ -102,11 +118,16 @@ function renderSettings() {
   $('#proSection').hidden = settings.backend !== 'pro';
   $('#apiSection').hidden = settings.backend !== 'api';
   $('#freeFallbackRow').hidden = settings.backend === 'free'; // le secours n'a de sens qu'avec Claude
+  $('#freeFields').hidden = settings.backend !== 'free' && !settings.freeFallback;
   $('#effortField').hidden = settings.backend === 'free';
   if (document.activeElement !== $('#customInstr')) $('#customInstr').value = settings.customInstr;
 }
 
 function setupSettings() {
+  $('#settingsNav').addEventListener('click', (e) => {
+    const b = e.target.closest('button[data-page]');
+    if (b) openSettingsPage(b.dataset.page);
+  });
   $$('.seg[data-setting]').forEach((seg) => seg.insertAdjacentHTML('afterbegin', '<span class="seg-thumb"></span>'));
   $$('.seg[data-setting], .mode-cards[data-setting]').forEach((seg) => {
     seg.addEventListener('click', (e) => {
@@ -137,4 +158,4 @@ function setupSettings() {
   $('#quitBtn').addEventListener('click', () => send('quit'));
 }
 
-export { settings, setSetting, sendConfig, applyAppearance, renderSettings, setupSettings, onSettingChange };
+export { settings, setSetting, sendConfig, applyAppearance, renderSettings, setupSettings, openSettingsPage, onSettingChange };

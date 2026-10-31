@@ -3,6 +3,9 @@
 :root {
   --inset: 14px;        /* partie de la fenêtre cachée au-dessus de l'écran */
   --bar-h: 58px;
+  --flare: 18px;        /* évasement des bords vers l'écran (réglage « Bords évasés », js/core/settings.js) */
+  --flare-pad: 32px;    /* marge de la fenêtre de chaque côté du dock, évasement maximal (= kFlare dans dock.cpp) */
+  --dock-w: 680px;
   --panel-h: 540px;
   --accent: #8b7cff;
   --accent2: #5ac8fa;
@@ -30,6 +33,7 @@ body.theme-dark {
   --shadow: rgba(0, 0, 0, .5);
   --code: rgba(0, 0, 0, .3);
   --blob-op: .30;
+  --glass-fill: rgba(22, 22, 32, .985);
 }
 
 body.theme-light {
@@ -49,6 +53,7 @@ body.theme-light {
   --shadow: rgba(50, 50, 90, .22);
   --code: rgba(255, 255, 255, .6);
   --blob-op: .22;
+  --glass-fill: rgba(246, 247, 252, 1);
 }
 
 * { box-sizing: border-box; }
@@ -73,7 +78,21 @@ body {
 html.linux body { background: rgba(18, 18, 28, .93); border-radius: 0 0 18px 18px; }
 html.linux body.theme-light { background: rgba(244, 245, 251, .94); }
 
+/* Windows : plus d'acrylique (il remplit le rectangle de la fenêtre et ne peut pas être découpé).
+   Le verre est dessiné par la page : .ambient (dock.css), avec ses bords évasés vers l'écran.
+   Taille du verre par état : --shell-w/--shell-h ; --fl = évasement (nul pour la languette). */
+html.linux, html:has(body.preview) { --flare: 0px; --flare-pad: 0px; }
+
+body { --shell-w: var(--dock-w); --shell-h: calc(var(--bar-h) + var(--panel-h)); --fl: var(--flare); }
+body.st-hidden { --shell-w: 0px; --shell-h: 0px; --fl: 0px; }
+body.st-progress { --shell-w: 300px; --shell-h: 6px; --fl: 0px; }
+body.st-peek { --shell-w: 150px; --shell-h: 7px; --fl: 0px; }
+body.st-mini { --shell-w: var(--mini-w, 320px); --shell-h: var(--mini-h); }
+body.st-music { --shell-w: var(--mcard-w); --shell-h: var(--mcard-h); }
+body.st-bar { --shell-h: var(--bar-h); }
+
 /* Voile teinté par-dessus l'acrylique pour la profondeur */
+html:not(.linux) body:not(.preview)::before { display: none; }
 body::before {
   content: "";
   position: fixed;

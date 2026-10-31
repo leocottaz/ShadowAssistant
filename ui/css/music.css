@@ -88,6 +88,7 @@
   width: var(--mcard-w);
   height: var(--mcard-h);
   padding: 0 12px 0 10px;
+  border-radius: 0 0 18px 18px; /* = bas du verre (.ambient) : la teinte ne dépasse pas de ses coins */
   background: linear-gradient(110deg, color-mix(in srgb, var(--m-tint) 34%, transparent), transparent 75%);
   opacity: 0;
   visibility: hidden;
@@ -307,3 +308,12 @@
 .lyrics-credit a:hover { color: var(--fg); }
 
 #lyricsBtn.on { border-color: color-mix(in srgb, var(--accent) 60%, transparent); background: color-mix(in srgb, var(--accent) 18%, transparent); color: var(--fg); }
+
+/* Couleurs du dock = couleur dominante de la pochette (réglage « Adapter les couleurs du dock à la musique »).
+   --accent/--accent2 redéfinis sur body : boutons, halos et traits suivent ; le verre prend un peu de teinte. */
+body.tint-music.has-music {
+  --accent: var(--m-accent, var(--m-tint)); /* teinte bornée (music.js, accentFrom) : texte blanc des boutons lisible */
+  --accent2: var(--m-accent2, var(--m-tint));
+}
+html:not(.linux) body.tint-music.has-music:not(.preview) .ambient { background: color-mix(in srgb, var(--m-tint) 16%, var(--glass-fill)); }
+html.linux body.tint-music.has-music.theme-dark { background: color-mix(in srgb, var(--m-tint) 14%, rgba(18, 18, 28, .93)); }

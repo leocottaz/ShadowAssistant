@@ -401,7 +401,8 @@ void Worker() {
     }
 
     Snapshot last;
-    std::string lastTrack, lastArt;
+    std::string lastTrack, lastArt, prevArt;
+    int artRetries = 0;
     bool sentOnce = false;
     while (g_running) {
         bool allSources, forceFull = false;
@@ -430,13 +431,25 @@ void Worker() {
         g_playing = snap.active && snap.status == "playing";
 
         bool trackChanged = snap.TrackKey() != lastTrack;
+        bool artUpdated = false;
         if (snap.active && trackChanged) {
+            prevArt = lastArt;
             lastArt = props ? ReadThumbnail(props.p) : std::string();
             lastTrack = snap.TrackKey();
+            // Les applis (Deezer…) changent souvent la pochette après le titre : on relit un moment.
+            artRetries = lastArt.empty() || lastArt == prevArt ? 12 : 0;
+        } else if (snap.active && artRetries > 0 && props) {
+            --artRetries;
+            std::string art = ReadThumbnail(props.p);
+            if (!art.empty() && art != lastArt && art != prevArt) {
+                lastArt = std::move(art);
+                artRetries = 0;
+                artUpdated = true;
+            }
         }
         if (!snap.active) lastTrack.clear();
-        if (forceFull || !sentOnce || trackChanged || !snap.SameAs(last)) {
-            bool withArt = snap.active && (forceFull || trackChanged || !sentOnce);
+        if (forceFull || !sentOnce || trackChanged || artUpdated || !snap.SameAs(last)) {
+            bool withArt = snap.active && (forceFull || trackChanged || artUpdated || !sentOnce);
             bridge::PostToPage(ToJson(snap, withArt ? &lastArt : nullptr));
             last = snap;
             sentOnce = true;

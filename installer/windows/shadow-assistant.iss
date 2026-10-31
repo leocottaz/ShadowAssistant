@@ -37,6 +37,7 @@ OutputBaseFilename=ShadowAssistant-v{#AppVersion}-windows-x64-setup
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
+SetupIconFile=..\..\src\app\shadow-assistant.ico
 UninstallDisplayName={#AppName}
 UninstallDisplayIcon={app}\{#AppExe}
 ; Le dock tourne en arrière-plan : on l'arrête nous-mêmes (voir StopInstalledDock), et seulement la copie

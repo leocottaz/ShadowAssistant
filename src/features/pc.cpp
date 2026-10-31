@@ -31,6 +31,27 @@ std::wstring Lower(std::wstring s) {
     return s;
 }
 
+// Minuscules sans accents (« Été » -> « ete ») : pour comparer les noms de fichiers.
+std::wstring Fold(const std::wstring& s) {
+    std::wstring in = s;
+    int n = FoldStringW(MAP_COMPOSITE, s.c_str(), (int)s.size(), nullptr, 0); // lettre + accent séparés
+    if (n > 0) {
+        std::wstring dec((size_t)n, L'\0');
+        if (FoldStringW(MAP_COMPOSITE, s.c_str(), (int)s.size(), dec.data(), n) > 0) in = dec;
+    }
+    std::wstring out;
+    for (wchar_t c : in)
+        if (c < 0x300 || c > 0x36F) out += (wchar_t)std::towlower(c);
+    return out;
+}
+
+constexpr size_t kMaxResults = 15;
+
+struct Hit {
+    std::wstring path;
+    long long modified = 0, size = 0;
+};
+
 void Reply(const std::string& id, const std::string& fields) {
     bridge::PostToPage("{\"t\":\"reply\",\"id\":" + util::Json(id) + "," + fields + "}");
 }
@@ -87,29 +108,73 @@ SYSTEMTIME NextDay(const SYSTEMTIME& st) {
     return out;
 }
 
-// Retourne une requête vide si aucun critère n'est utilisable.
-std::wstring BuildQuery(const std::string& words, const std::string& ext, const std::string& from,
-                        const std::string& to) {
-    std::wstring where;
-    for (const auto& w : Words(util::Widen(words)))
-        where += L" AND (CONTAINS(System.FileName, '\"" + w + L"*\"') OR CONTAINS(*, '\"" + w + L"*\"'))";
-    std::wstring e;
-    for (char c : ext)
-        if (std::isalnum((unsigned char)c) && e.size() < 8) e += (wchar_t)std::tolower((unsigned char)c);
-    if (!e.empty()) where += L" AND System.FileExtension = '." + e + L"'";
-    SYSTEMTIME st;
-    if (ParseDate(from, st)) where += L" AND System.DateModified >= '" + DateText(st) + L"'";
-    if (ParseDate(to, st)) where += L" AND System.DateModified < '" + DateText(NextDay(st)) + L"'";
-    if (where.empty()) return {};
+// Extensions séparées par des virgules, des espaces ou des points : « pdf, docx » -> {pdf, docx}.
+std::vector<std::wstring> Extensions(const std::string& text) {
+    std::vector<std::wstring> out;
+    std::wstring cur;
+    auto flush = [&] {
+        if (!cur.empty() && out.size() < 5 && std::find(out.begin(), out.end(), cur) == out.end()) out.push_back(cur);
+        cur.clear();
+    };
+    for (char c : text) {
+        if (std::isalnum((unsigned char)c) && cur.size() < 8) cur += (wchar_t)std::tolower((unsigned char)c);
+        else flush();
+    }
+    flush();
+    return out;
+}
+
+struct Query {
+    std::vector<std::wstring> words, exts;
+    bool hasFrom = false, hasTo = false;
+    SYSTEMTIME from{}, to{};
+    bool Empty() const { return words.empty() && exts.empty() && !hasFrom && !hasTo; }
+};
+
+// nameOnly : seulement le nom du fichier (sinon aussi le contenu) ; anyWord : un mot suffit (sinon tous).
+std::wstring BuildQuery(const Query& q, bool nameOnly, bool anyWord, int top) {
+    std::wstring where, words;
+    for (const auto& w : q.words) {
+        std::wstring c = L"CONTAINS(System.FileName, '\"" + w + L"*\"')";
+        if (!nameOnly) c = L"(" + c + L" OR CONTAINS(*, '\"" + w + L"*\"'))";
+        words += (words.empty() ? L"" : anyWord ? L" OR " : L" AND ") + c;
+    }
+    if (!words.empty()) where += L" AND (" + words + L")";
+    if (!q.exts.empty()) {
+        std::wstring e;
+        for (const auto& x : q.exts) e += (e.empty() ? L"" : L" OR ") + std::wstring(L"System.FileExtension = '.") + x + L"'";
+        where += L" AND (" + e + L")";
+    }
+    if (q.hasFrom) where += L" AND System.DateModified >= '" + DateText(q.from) + L"'";
+    if (q.hasTo) where += L" AND System.DateModified < '" + DateText(NextDay(q.to)) + L"'";
 
     std::wstring scope = util::KnownFolder(FOLDERID_Profile);
     std::replace(scope.begin(), scope.end(), L'\\', L'/');
-    size_t q = 0;
-    while ((q = scope.find(L'\'', q)) != std::wstring::npos) scope.insert(q, 1, L'\''), q += 2;
-    return L"SELECT TOP 15 System.ItemPathDisplay, System.DateModified, System.Size FROM SystemIndex"
+    size_t p = 0;
+    while ((p = scope.find(L'\'', p)) != std::wstring::npos) scope.insert(p, 1, L'\''), p += 2;
+    return L"SELECT TOP " + std::to_wstring(top) +
+           L" System.ItemPathDisplay, System.DateModified, System.Size FROM SystemIndex"
            L" WHERE SCOPE='file:" + scope + L"' AND System.ItemType <> 'Directory'"
            L" AND NOT System.ItemPathDisplay LIKE '%\\AppData\\%'" + where +
            L" ORDER BY System.DateModified DESC";
+}
+
+// Nom du fichier d'abord (début de mot > ailleurs), contenu seul en dernier ; tous les mots = bonus.
+int Score(const Hit& h, const std::vector<std::wstring>& foldedWords) {
+    const wchar_t* slash = wcsrchr(h.path.c_str(), L'\\');
+    std::wstring name = Fold(slash ? slash + 1 : h.path);
+    int score = 0, inName = 0;
+    for (const auto& w : foldedWords) {
+        size_t at = name.find(w);
+        if (at == std::wstring::npos) {
+            score += 1; // trouvé dans le contenu
+            continue;
+        }
+        ++inName;
+        score += (at == 0 || !std::iswalnum(name[at - 1])) ? 15 : 10;
+    }
+    if (!foldedWords.empty() && inName == (int)foldedWords.size()) score += 20;
+    return score;
 }
 
 // ------------------------------------------------------------------ OLE DB
@@ -153,8 +218,8 @@ long long VariantNumber(const VARIANT& v) {
     return n;
 }
 
-// Exécute la requête ; remplit json (tableau) ou retourne un message d'erreur.
-std::string RunQuery(const std::wstring& sql, std::string& json) {
+// Exécute la requête ; remplit hits ou retourne un message d'erreur.
+std::string RunQuery(const std::wstring& sql, std::vector<Hit>& hits) {
     Com<IDataInitialize> init;
     if (FAILED(CoCreateInstance(CLSID_MSDAINITIALIZE, nullptr, CLSCTX_INPROC_SERVER, IID_IDataInitialize,
                                 (void**)init.put())))
@@ -192,9 +257,6 @@ std::string RunQuery(const std::wstring& sql, std::string& json) {
         FAILED(accessor->CreateAccessor(DBACCESSOR_ROWDATA, 3, bind, sizeof(Row), &hAcc, nullptr)))
         return "Lecture des résultats impossible.";
 
-    json = "[";
-    bool first = true;
-    std::vector<std::wstring> found;
     for (;;) {
         HROW handles[10];
         HROW* ph = handles;
@@ -205,14 +267,7 @@ std::string RunQuery(const std::wstring& sql, std::string& json) {
             for (auto& v : r.value) VariantInit(&v);
             if (SUCCEEDED(rows->GetData(handles[i], hAcc, &r)) && r.status[0] == DBSTATUS_S_OK &&
                 r.value[0].vt == VT_BSTR) {
-                std::wstring path = r.value[0].bstrVal;
-                const wchar_t* slash = wcsrchr(path.c_str(), L'\\');
-                json += std::string(first ? "" : ",") + "{\"path\":" + util::Json(util::Narrow(path)) +
-                        ",\"name\":" + util::Json(util::Narrow(slash ? slash + 1 : path.c_str())) +
-                        ",\"modified\":" + std::to_string(VariantEpochMs(r.value[1])) +
-                        ",\"size\":" + std::to_string(VariantNumber(r.value[2])) + "}";
-                first = false;
-                found.push_back(Lower(path));
+                hits.push_back({r.value[0].bstrVal, VariantEpochMs(r.value[1]), VariantNumber(r.value[2])});
             }
             for (auto& v : r.value) VariantClear(&v);
         }
@@ -220,10 +275,35 @@ std::string RunQuery(const std::wstring& sql, std::string& json) {
         if (hr != S_OK || !got) break; // DB_S_ENDOFROWSET
     }
     accessor->ReleaseAccessor(hAcc, nullptr);
-    json += "]";
-    std::lock_guard lock(g_foundMutex);
-    if (g_found.size() > 2000) g_found.clear();
-    g_found.insert(found.begin(), found.end());
+    return {};
+}
+
+// Nom du fichier d'abord, puis contenu ; sans résultat avec tous les mots, on essaie « un des mots ».
+std::string SearchAll(const Query& q, std::vector<Hit>& out) {
+    std::set<std::wstring> seen;
+    auto run = [&](bool nameOnly, bool anyWord, int top) {
+        std::vector<Hit> hits;
+        std::string err = RunQuery(BuildQuery(q, nameOnly, anyWord, top), hits);
+        for (auto& h : hits)
+            if (seen.insert(Lower(h.path)).second) out.push_back(std::move(h));
+        return err;
+    };
+    std::string err;
+    if (!q.words.empty()) err = run(true, false, 30);
+    if (err.empty() && out.size() < kMaxResults) err = run(false, false, 40);
+    if (err.empty() && out.empty() && q.words.size() > 1) err = run(false, true, 40);
+    if (!err.empty()) return err;
+
+    std::vector<std::wstring> folded;
+    for (const auto& w : q.words) folded.push_back(Fold(w));
+    std::vector<std::pair<int, size_t>> order; // (score, indice)
+    for (size_t i = 0; i < out.size(); ++i) order.push_back({Score(out[i], folded), i});
+    std::stable_sort(order.begin(), order.end(), [&](const auto& a, const auto& b) {
+        return a.first != b.first ? a.first > b.first : out[a.second].modified > out[b.second].modified;
+    });
+    std::vector<Hit> ranked;
+    for (size_t i = 0; i < order.size() && i < kMaxResults; ++i) ranked.push_back(out[order[i].second]);
+    out = std::move(ranked);
     return {};
 }
 
@@ -246,17 +326,38 @@ void Search(const std::string& payload) {
     auto f = util::Split(payload, '\n', 5);
     if (f.empty() || f[0].empty()) return;
     f.resize(5);
-    std::wstring sql = BuildQuery(f[1], f[2], f[3], f[4]);
-    if (sql.empty()) {
+    Query q;
+    q.words = Words(util::Widen(f[1]));
+    q.exts = Extensions(f[2]);
+    q.hasFrom = ParseDate(f[3], q.from);
+    q.hasTo = ParseDate(f[4], q.to);
+    if (q.Empty()) {
         ReplyError(f[0], "Donne au moins un mot, une extension ou une date.");
         return;
     }
-    std::thread([id = f[0], sql] {
+    std::thread([id = f[0], q] {
         CoInitializeEx(nullptr, COINIT_MULTITHREADED);
-        std::string json;
-        std::string err = RunQuery(sql, json);
-        if (err.empty()) Reply(id, "\"ok\":true,\"results\":" + json);
-        else ReplyError(id, err);
+        std::vector<Hit> hits;
+        std::string err = SearchAll(q, hits);
+        if (err.empty()) {
+            std::string json = "[";
+            for (size_t i = 0; i < hits.size(); ++i) {
+                const wchar_t* slash = wcsrchr(hits[i].path.c_str(), L'\\');
+                json += std::string(i ? "," : "") + "{\"path\":" + util::Json(util::Narrow(hits[i].path)) +
+                        ",\"name\":" + util::Json(util::Narrow(slash ? slash + 1 : hits[i].path.c_str())) +
+                        ",\"modified\":" + std::to_string(hits[i].modified) +
+                        ",\"size\":" + std::to_string(hits[i].size) + "}";
+            }
+            json += "]";
+            {
+                std::lock_guard lock(g_foundMutex);
+                if (g_found.size() > 2000) g_found.clear();
+                for (const auto& h : hits) g_found.insert(Lower(h.path));
+            }
+            Reply(id, "\"ok\":true,\"results\":" + json);
+        } else {
+            ReplyError(id, err);
+        }
         CoUninitialize();
     }).detach();
 }

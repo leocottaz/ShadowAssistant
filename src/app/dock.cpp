@@ -34,7 +34,8 @@ constexpr int kTabW = 150, kTabH = 7;     // languette (mode 1)
 constexpr int kStripW = 300, kStripH = 6; // barre de progression (mode 0)
 constexpr int kMiniH = 40;                // mini-dock : rappels, paroles (= --mini-h dans ui/css/dock.css)
 constexpr int kMusicH = 76;               // carte musique (= --mcard-h dans ui/css/music.css)
-constexpr int kExtra = 40;                // marge pour le rebond de l'animation
+constexpr int kFlare = 32;                // marge de chaque côté pour les bords évasés, au maximum (= --flare-pad dans ui/css/base.css)
+constexpr int kExtra = 40;               // marge pour le rebond de l'animation
 
 // Mini : dock rangé réduit à une pastille (cloche des rappels sonnés, ligne de paroles en cours).
 // Music : carte du morceau (pochette, titre, contrôles) qui descend quand la musique change.
@@ -125,7 +126,7 @@ RECT TargetRect(State s) {
     }
     int top = m.top - Px(kInset);
     if (s == State::Hidden) top -= Px(24); // complètement hors de l'écran (et de son ombre)
-    int pw = Px(w);
+    int pw = Px(w + 2 * kFlare);
     return {cx - pw / 2, top, cx - pw / 2 + pw, top + Px(h)};
 }
 
@@ -135,7 +136,7 @@ void UpdateWebBounds() {
     RECT wr;
     GetWindowRect(g_hwnd, &wr);
     int curW = wr.right - wr.left;
-    int fullW = Px(g_cfg.width);
+    int fullW = Px(g_cfg.width + 2 * kFlare);
     int fullH = Px(kInset + kBarH + g_cfg.panelH + kExtra);
     webview::SetBounds({(curW - fullW) / 2, 0, (curW - fullW) / 2 + fullW, fullH});
 }
@@ -258,6 +259,9 @@ void FollowMouse(POINT p) {
     SetState(RestState(), true);
 }
 
+bool g_wasFocused = false;
+bool g_marginClick = false; // clic dans la marge transparente : le focus de la fenêtre ne garde pas le dock ouvert
+
 // Surveille la souris : bord haut de l'écran, survol, repli automatique.
 void Poll() {
     POINT p;
@@ -301,6 +305,17 @@ void Poll() {
         case State::Panel: {
             RECT wr;
             GetWindowRect(g_hwnd, &wr);
+            // Les marges transparentes de chaque côté (évasements) ne comptent pas comme le dock : un clic
+            // dedans donne le focus à la fenêtre, mais il doit se ranger comme un clic à côté.
+            RECT full = wr;
+            wr.left += Px(kFlare);
+            wr.right -= Px(kFlare);
+            bool inInner = PtInRect(&wr, p);
+            bool focused = GetForegroundWindow() == g_hwnd;
+            bool inMargin = PtInRect(&full, p) && !inInner;
+            if (inMargin && (mouseDown || (focused && !g_wasFocused))) g_marginClick = true; // clic, ou focus pris par un clic
+            g_wasFocused = focused;
+            if (inInner) g_marginClick = false;
             InflateRect(&wr, Px(8), Px(8));
             // Carte musique : la souris en haut de l'écran, à côté de la carte, ouvre la barre complète.
             if (g_state == State::Music && wantsReveal && !PtInRect(&wr, p)) {
@@ -317,7 +332,7 @@ void Poll() {
             // (Pas pour la carte musique : un clic sur lecture/pause l'active, elle ne doit pas rester pour autant.)
             HWND fg = GetForegroundWindow();
             bool hold = g_pinned || now < g_holdUntil ||
-                        (g_state != State::Music && (fg == g_hwnd || (fg && GetWindow(fg, GW_OWNER) == g_hwnd)));
+                        (g_state != State::Music && !g_marginClick && (fg == g_hwnd || (fg && GetWindow(fg, GW_OWNER) == g_hwnd)));
             if (inside || hold) {
                 g_outsideSince = 0;
             } else {
@@ -336,11 +351,13 @@ void ApplyBackdrop() {
     DwmExtendFrameIntoClientArea(g_hwnd, &margins);
     BOOL dark = g_cfg.dark;
     DwmSetWindowAttribute(g_hwnd, 20 /* DWMWA_USE_IMMERSIVE_DARK_MODE */, &dark, sizeof dark);
-    int corner = 2; // DWMWCP_ROUND
+    // Plus d'acrylique : il remplit le rectangle de la fenêtre et ignore toute découpe. La page dessine
+    // le verre et ses bords évasés (.shell dans ui/css/base.css) sur une fenêtre transparente.
+    int corner = 1; // DWMWCP_DONOTROUND
     DwmSetWindowAttribute(g_hwnd, 33 /* DWMWA_WINDOW_CORNER_PREFERENCE */, &corner, sizeof corner);
-    COLORREF border = g_cfg.dark ? RGB(72, 72, 84) : RGB(205, 205, 215);
+    COLORREF border = 0xFFFFFFFE; // DWMWA_COLOR_NONE
     DwmSetWindowAttribute(g_hwnd, 34 /* DWMWA_BORDER_COLOR */, &border, sizeof border);
-    int backdrop = 3; // DWMSBT_TRANSIENTWINDOW : acrylique
+    int backdrop = 1; // DWMSBT_NONE
     DwmSetWindowAttribute(g_hwnd, 38 /* DWMWA_SYSTEMBACKDROP_TYPE */, &backdrop, sizeof backdrop);
 }
 

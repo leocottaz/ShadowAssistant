@@ -1,7 +1,7 @@
 // Point d'entrée : branche les modules et route les messages du natif.
 import { $, store, toast, hydrateIcons } from './core/util.js';
 import { bridge, send, http, onReply } from './core/bridge.js';
-import { settings, sendConfig, applyAppearance, renderSettings, setupSettings, onSettingChange } from './core/settings.js';
+import { settings, sendConfig, applyAppearance, renderSettings, setupSettings, openSettingsPage, onSettingChange } from './core/settings.js';
 import { S } from './core/state.js';
 import { checkClaudeCode, renderCc, renderKey, renderFree, testFree, onFreeKey, setupConnection } from './chat/connection.js';
 import { knownModels } from './chat/free.js';
@@ -12,7 +12,7 @@ import { renderTodos, setupTodo } from './features/todo.js';
 import { setupRoutines } from './features/routines.js';
 import { setupTimer, renderTimer, finishTimer, syncTimer } from './features/timer.js';
 import { renderChat, focusComposer, setupChat } from './chat/chat.js';
-import { onMedia, setupMusic, connectMusic, previewLyrics } from './features/music.js';
+import { onMedia, setupMusic, connectMusic, previewLyrics, fetchLyrics, cleanTitle } from './features/music.js';
 
 function onNative(m) {
   switch (m.t) {
@@ -33,7 +33,7 @@ function onNative(m) {
       checkClaudeCode();
       if (!store.get('welcomed', false)) {
         store.set('welcomed', true);
-        setTimeout(() => { switchTab('settings'); send('open'); setTimeout(() => $('#keyInput').focus(), 400); }, 1400);
+        setTimeout(() => { switchTab('settings'); openSettingsPage('maya'); send('open'); setTimeout(() => $('#keyInput').focus(), 400); }, 1400);
       }
       break;
     case 'state': setState(m.s, m); break;
@@ -108,7 +108,7 @@ function init() {
     // Aperçu dans un navigateur : on affiche directement le panneau. window.__preview permet
     // de simuler des messages du natif depuis la console (ex. un morceau en cours).
     document.body.classList.add('preview');
-    window.__preview = { onNative, previewLyrics };
+    window.__preview = { onNative, previewLyrics, fetchLyrics, cleanTitle };
     setTimeout(() => setState('panel', {}), 60);
   }
 }

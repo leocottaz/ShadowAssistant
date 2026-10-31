@@ -3,6 +3,41 @@
 /* ------------------------------------------------------------------ ambiance */
 
 .ambient { position: fixed; inset: 0; pointer-events: none; overflow: hidden; }
+/* Windows : .ambient est le verre lui-même (fond + halo), découpé par un masque : corps au bas arrondi
+   (18 px) plus un évasement concave de chaque côté. Les évasements portent ainsi le même halo. */
+html:not(.linux) body:not(.preview) .ambient {
+  --r: 18px;
+  inset: auto;
+  top: 0;
+  left: 50%;
+  translate: -50% 0;
+  width: calc(var(--shell-w) + 2 * var(--fl));
+  height: calc(var(--inset) + var(--shell-h));
+  background: var(--glass-fill);
+  transition: width .38s var(--smooth), height .38s var(--smooth), background .8s;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-image:
+    linear-gradient(#000, #000),
+    linear-gradient(#000, #000),
+    radial-gradient(circle at 100% 0, #000 calc(var(--r) - .5px), transparent calc(var(--r) + .5px)),
+    radial-gradient(circle at 0 0, #000 calc(var(--r) - .5px), transparent calc(var(--r) + .5px)),
+    radial-gradient(circle at 0 100%, transparent calc(var(--fl) - .6px), #000 calc(var(--fl) + .4px)),
+    radial-gradient(circle at 100% 100%, transparent calc(var(--fl) - .6px), #000 calc(var(--fl) + .4px));
+  -webkit-mask-size:
+    calc(100% - 2 * var(--fl)) calc(100% - var(--r)),
+    calc(100% - 2 * var(--fl) - 2 * var(--r)) 100%,
+    var(--r) var(--r),
+    var(--r) var(--r),
+    var(--fl) var(--fl),
+    var(--fl) var(--fl);
+  -webkit-mask-position:
+    var(--fl) 0,
+    calc(var(--fl) + var(--r)) 0,
+    var(--fl) 100%,
+    calc(100% - var(--fl)) 100%,
+    0 var(--inset),
+    100% var(--inset);
+}
 /* Taches de couleur : un dégradé radial donne le même halo qu'un flou, sans le coût
    d'un filter: blur() (textures GPU de grande taille gardées en mémoire). */
 .blob {
@@ -46,12 +81,12 @@
 }
 .st-peek .peek { opacity: 1; }
 
-.strip { width: 300px; height: 6px; }
+.strip { width: 300px; height: 6px; overflow: hidden; border-radius: 0 0 4px 4px; } /* = bas du verre (.ambient, --r) */
 .strip span {
   display: block;
   width: 0;
   height: 100%;
-  border-radius: 0 3px 3px 0;
+  border-radius: 0;
   background: linear-gradient(90deg, var(--accent), var(--accent2), #ff7ad9, var(--accent));
   background-size: 300% 100%;
   box-shadow: 0 0 14px var(--accent);
@@ -147,8 +182,8 @@
 .bar {
   position: fixed;
   top: var(--inset);
-  left: 0;
-  right: 0;
+  left: var(--flare-pad);
+  right: var(--flare-pad);
   height: var(--bar-h);
   display: flex;
   align-items: center;
@@ -348,8 +383,8 @@ kbd {
 .panel {
   position: fixed;
   top: calc(var(--inset) + var(--bar-h));
-  left: 0;
-  right: 0;
+  left: var(--flare-pad);
+  right: var(--flare-pad);
   height: var(--panel-h);
   opacity: 0;
   transform: translateY(-12px) scale(.985);
@@ -409,3 +444,7 @@ kbd {
   .ask kbd { display: none; }
   .clock .sub { max-width: 130px; }
 }
+
+/* Languette et progression : verre très bas, coins bas plus petits (le trait de progression ne dépasse pas). */
+html:not(.linux) body.st-progress:not(.preview) .ambient,
+html:not(.linux) body.st-peek:not(.preview) .ambient { --r: 4px; }

@@ -233,160 +233,197 @@
       <div class="view-head">
         <div><h2>Réglages</h2><p>Personnalise ton dock</p></div>
       </div>
-      <div class="scroll settings">
-        <div class="card glass">
-          <h3><i data-icon="sparkles"></i>Maya</h3>
-          <div class="field">
-            <label>Connexion</label>
-            <div class="seg" data-setting="backend">
-              <button type="button" data-v="pro">Abonnement Pro</button>
-              <button type="button" data-v="api">Clé API</button>
-              <button type="button" data-v="free">Gratuit</button>
+      <div class="set-layout">
+        <!-- Une page par thème, affichée par renderSettings (settings.settingsPage) -->
+        <nav class="set-nav" id="settingsNav" aria-label="Sections des réglages">
+          <button type="button" data-page="maya" title="Maya"><i data-icon="sparkles"></i><span>Maya</span></button>
+          <button type="button" data-page="appearance" title="Apparence"><i data-icon="palette"></i><span>Apparence</span></button>
+          <button type="button" data-page="behavior" title="Comportement"><i data-icon="eye"></i><span>Comportement</span></button>
+          <button type="button" data-page="music" title="Musique"><i data-icon="music"></i><span>Musique</span></button>
+          <button type="button" data-page="routines" title="Routines"><i data-icon="routine"></i><span>Routines</span></button>
+          <button type="button" data-page="system" title="Système"><i data-icon="cpu"></i><span>Système</span></button>
+        </nav>
+        <div class="scroll settings" id="settingsBody">
+          <div class="set-page" data-page="maya">
+            <div class="card glass">
+              <h3>Connexion</h3>
+              <div class="field">
+                <div class="seg" data-setting="backend">
+                  <button type="button" data-v="pro">Abonnement Pro</button>
+                  <button type="button" data-v="api">Clé API</button>
+                  <button type="button" data-v="free">Gratuit</button>
+                </div>
+              </div>
+              <div id="proSection">
+                <div class="field">
+                  <label>Claude Code <span class="hint">utilise ton abonnement, sans facturation API</span></label>
+                  <div class="key-status" id="ccStatus"></div>
+                </div>
+                <div class="field">
+                  <label>Modèle</label>
+                  <div class="seg" data-setting="ccModel">
+                    <button type="button" data-v="default">Par défaut</button>
+                    <button type="button" data-v="opus">Opus</button>
+                    <button type="button" data-v="sonnet">Sonnet</button>
+                    <button type="button" data-v="haiku">Haiku</button>
+                  </div>
+                </div>
+              </div>
+              <div id="apiSection">
+                <div class="field">
+                  <label>Clé API Anthropic <span class="hint">facturée à l'usage, en plus de l'abonnement</span></label>
+                  <div class="key-row">
+                    <input type="password" id="keyInput" placeholder="sk-ant-…" spellcheck="false">
+                    <button type="button" class="primary" id="keySave">Enregistrer</button>
+                  </div>
+                  <div class="key-status" id="keyStatus"></div>
+                </div>
+                <div class="field">
+                  <label>Modèle</label>
+                  <div class="seg" data-setting="model">
+                    <button type="button" data-v="claude-opus-5-5">Opus 5.5</button>
+                    <button type="button" data-v="claude-sonnet-5-5">Sonnet 5.5</button>
+                    <button type="button" data-v="claude-haiku-5-5">Haiku 5.5</button>
+                  </div>
+                </div>
+              </div>
+              <div class="field" id="effortField">
+                <label>Réflexion</label>
+                <div class="seg" data-setting="effort">
+                  <button type="button" data-v="low">Rapide</button>
+                  <button type="button" data-v="medium">Équilibrée</button>
+                  <button type="button" data-v="high">Approfondie</button>
+                </div>
+              </div>
+              <!-- Modèle gratuit : choisi comme connexion, ou en secours quand Claude est indisponible -->
+              <label class="toggle-row" id="freeFallbackRow">Passer au modèle gratuit si Claude est indisponible<span class="toggle"><input type="checkbox" data-setting="freeFallback"><span></span></span></label>
+              <div id="freeFields">
+                <div class="field">
+                  <label>Modèle gratuit <span class="hint">tes messages partent chez ce service ; quotas limités</span></label>
+                  <div class="seg" data-setting="freeService">
+                    <button type="button" data-v="gemini">Google Gemini</button>
+                    <button type="button" data-v="groq">Groq</button>
+                  </div>
+                </div>
+                <div class="field">
+                  <div class="key-row">
+                    <input type="password" id="freeKeyInput" placeholder="Colle ta clé gratuite…" spellcheck="false">
+                    <button type="button" class="primary" id="freeKeySave">Enregistrer</button>
+                  </div>
+                  <div class="key-status" id="freeKeyStatus"></div>
+                </div>
+                <div class="field" id="freeModelField">
+                  <label>Modèle</label>
+                  <select id="freeModel"></select>
+                </div>
+              </div>
             </div>
-          </div>
-          <div id="proSection">
-            <div class="field">
-              <label>Claude Code <span class="hint">utilise ton abonnement, sans facturation API</span></label>
-              <div class="key-status" id="ccStatus"></div>
-            </div>
-            <div class="field">
-              <label>Modèle</label>
-              <div class="seg" data-setting="ccModel">
-                <button type="button" data-v="default">Par défaut</button>
-                <button type="button" data-v="opus">Opus</button>
-                <button type="button" data-v="sonnet">Sonnet</button>
-                <button type="button" data-v="haiku">Haiku</button>
+            <div class="card glass">
+              <h3>Instructions</h3>
+              <div class="field">
+                <label>Ce que Maya doit savoir <span class="hint">pour les nouvelles conversations</span></label>
+                <textarea id="customInstr" rows="3" placeholder="Ex. : tutoie-moi, je suis développeur, réponds très brièvement…"></textarea>
               </div>
             </div>
           </div>
-          <div id="apiSection">
-            <div class="field">
-              <label>Clé API Anthropic <span class="hint">facturée à l'usage, en plus de l'abonnement</span></label>
-              <div class="key-row">
-                <input type="password" id="keyInput" placeholder="sk-ant-…" spellcheck="false">
-                <button type="button" class="primary" id="keySave">Enregistrer</button>
+
+          <div class="set-page" data-page="appearance">
+            <div class="card glass">
+              <h3>Couleurs</h3>
+              <div class="field">
+                <label>Thème</label>
+                <div class="seg" data-setting="theme">
+                  <button type="button" data-v="dark">Sombre</button>
+                  <button type="button" data-v="light">Clair</button>
+                </div>
               </div>
-              <div class="key-status" id="keyStatus"></div>
+              <div class="field">
+                <label>Couleur d'accent</label>
+                <div class="swatches" id="swatches"></div>
+              </div>
+              <label class="toggle-row">Adapter les couleurs du dock à la musique<span class="toggle"><input type="checkbox" data-setting="musicTint"><span></span></span></label>
             </div>
-            <div class="field">
-              <label>Modèle</label>
-              <div class="seg" data-setting="model">
-                <button type="button" data-v="claude-opus-5-5">Opus 5.5</button>
-                <button type="button" data-v="claude-sonnet-5-5">Sonnet 5.5</button>
-                <button type="button" data-v="claude-haiku-5-5">Haiku 5.5</button>
+            <div class="card glass">
+              <h3>Forme et animations</h3>
+              <div class="field">
+                <label>Largeur du dock <output data-for="width"></output></label>
+                <input type="range" min="560" max="960" step="10" data-setting="width">
+              </div>
+              <div class="field">
+                <label>Hauteur du panneau <output data-for="panelH"></output></label>
+                <input type="range" min="380" max="760" step="10" data-setting="panelH">
+              </div>
+              <div class="field" id="flareField">
+                <label>Bords évasés <output data-for="flare"></output></label>
+                <input type="range" min="0" max="32" step="2" data-setting="flare">
+              </div>
+              <label class="toggle-row">Réduire les animations<span class="toggle"><input type="checkbox" data-setting="reduceMotion"><span></span></span></label>
+            </div>
+          </div>
+
+          <div class="set-page" data-page="behavior">
+            <div class="card glass">
+              <h3>Ouverture</h3>
+              <div class="mode-cards" data-setting="mode">
+                <button type="button" data-v="0">
+                  <span class="mini mini-hidden"><span></span></span>
+                  <b>Masqué</b>
+                  <small>Garde la souris en haut : une barre se remplit, puis le dock descend.</small>
+                </button>
+                <button type="button" data-v="1">
+                  <span class="mini mini-peek"><span></span></span>
+                  <b>Languette</b>
+                  <small>Un petit bout dépasse ; le dock sort dès que la souris arrive.</small>
+                </button>
+              </div>
+              <div class="field" id="revealField">
+                <label>Temps de remplissage de la barre <output data-for="revealDelay"></output></label>
+                <input type="range" min="0" max="2000" step="50" data-setting="revealDelay">
+              </div>
+              <div class="toggle-row">Ouvrir / fermer le dock<span><kbd>Ctrl</kbd> <kbd>Alt</kbd> <kbd>Espace</kbd></span></div>
+            </div>
+            <div class="card glass">
+              <h3>Repli</h3>
+              <div class="field">
+                <label>Délai avant de se replier <output data-for="hideDelay"></output></label>
+                <input type="range" min="200" max="3000" step="50" data-setting="hideDelay">
               </div>
             </div>
           </div>
-          <!-- Modèle gratuit : choisi comme connexion, ou en secours quand Claude est indisponible -->
-          <div id="freeSection" class="free-section">
-            <label class="toggle-row" id="freeFallbackRow">Passer au modèle gratuit si Claude est indisponible<span class="toggle"><input type="checkbox" data-setting="freeFallback"><span></span></span></label>
-            <div class="field">
-              <label>Modèle gratuit <span class="hint">tes messages partent chez ce service ; quotas limités</span></label>
-              <div class="seg" data-setting="freeService">
-                <button type="button" data-v="gemini">Google Gemini</button>
-                <button type="button" data-v="groq">Groq</button>
+
+          <div class="set-page" data-page="music">
+            <div class="card glass">
+              <h3>Lecteur</h3>
+              <div class="field">
+                <label>Source suivie</label>
+                <div class="seg" data-setting="musicSource">
+                  <button type="button" data-v="deezer">Deezer</button>
+                  <button type="button" data-v="all">Toutes les sources</button>
+                </div>
               </div>
-            </div>
-            <div class="field">
-              <div class="key-row">
-                <input type="password" id="freeKeyInput" placeholder="Colle ta clé gratuite…" spellcheck="false">
-                <button type="button" class="primary" id="freeKeySave">Enregistrer</button>
-              </div>
-              <div class="key-status" id="freeKeyStatus"></div>
-            </div>
-            <div class="field" id="freeModelField">
-              <label>Modèle</label>
-              <select id="freeModel"></select>
+              <label class="toggle-row">Montrer le morceau à chaque changement<span class="toggle"><input type="checkbox" data-setting="musicReveal"><span></span></span></label>
+              <label class="toggle-row">Afficher les paroles quand le dock est rangé<span class="toggle"><input type="checkbox" data-setting="miniLyrics"><span></span></span></label>
             </div>
           </div>
-          <div class="field" id="effortField">
-            <label>Réflexion</label>
-            <div class="seg" data-setting="effort">
-              <button type="button" data-v="low">Rapide</button>
-              <button type="button" data-v="medium">Équilibrée</button>
-              <button type="button" data-v="high">Approfondie</button>
-            </div>
-          </div>
-          <div class="field">
-            <label>Instructions personnalisées <span class="hint">pour les nouvelles conversations</span></label>
-            <textarea id="customInstr" rows="3" placeholder="Ex. : tutoie-moi, je suis développeur, réponds très brièvement…"></textarea>
-          </div>
-        </div>
 
-        <div class="card glass">
-          <h3><i data-icon="eye"></i>Apparition</h3>
-          <div class="mode-cards" data-setting="mode">
-            <button type="button" data-v="0">
-              <span class="mini mini-hidden"><span></span></span>
-              <b>Masqué</b>
-              <small>Garde la souris en haut : une barre se remplit, puis le dock descend.</small>
-            </button>
-            <button type="button" data-v="1">
-              <span class="mini mini-peek"><span></span></span>
-              <b>Languette</b>
-              <small>Un petit bout dépasse ; le dock sort dès que la souris arrive.</small>
-            </button>
-          </div>
-          <div class="field" id="revealField">
-            <label>Temps de remplissage de la barre <output data-for="revealDelay"></output></label>
-            <input type="range" min="0" max="2000" step="50" data-setting="revealDelay">
-          </div>
-          <div class="field">
-            <label>Délai avant de se replier <output data-for="hideDelay"></output></label>
-            <input type="range" min="200" max="3000" step="50" data-setting="hideDelay">
-          </div>
-        </div>
-
-        <div class="card glass">
-          <h3><i data-icon="palette"></i>Apparence</h3>
-          <div class="field">
-            <label>Thème</label>
-            <div class="seg" data-setting="theme">
-              <button type="button" data-v="dark">Sombre</button>
-              <button type="button" data-v="light">Clair</button>
+          <div class="set-page" data-page="routines">
+            <div class="card glass">
+              <h3>Routines</h3>
+              <p class="hint card-hint">Des étapes lancées d’un coup : ouvrir tes applis, régler le volume, lancer la musique… Maya peut aussi les lancer : « lance le mode travail ».</p>
+              <div id="routines"></div>
+              <button type="button" class="ghost add-routine" id="addRoutine"><i data-icon="plus"></i>Nouvelle routine</button>
             </div>
           </div>
-          <div class="field">
-            <label>Couleur d'accent</label>
-            <div class="swatches" id="swatches"></div>
-          </div>
-          <div class="field">
-            <label>Largeur du dock <output data-for="width"></output></label>
-            <input type="range" min="560" max="960" step="10" data-setting="width">
-          </div>
-          <div class="field">
-            <label>Hauteur du panneau <output data-for="panelH"></output></label>
-            <input type="range" min="380" max="760" step="10" data-setting="panelH">
-          </div>
-          <label class="toggle-row">Réduire les animations<span class="toggle"><input type="checkbox" data-setting="reduceMotion"><span></span></span></label>
-        </div>
 
-        <div class="card glass">
-          <h3><i data-icon="music"></i>Musique</h3>
-          <div class="field">
-            <label>Source suivie</label>
-            <div class="seg" data-setting="musicSource">
-              <button type="button" data-v="deezer">Deezer</button>
-              <button type="button" data-v="all">Toutes les sources</button>
+          <div class="set-page" data-page="system">
+            <div class="card glass">
+              <h3>Général</h3>
+              <label class="toggle-row">Son des notifications<span class="toggle"><input type="checkbox" data-setting="sound"><span></span></span></label>
+              <label class="toggle-row">Lancer au démarrage de l'ordinateur<span class="toggle"><input type="checkbox" data-setting="autostart"><span></span></span></label>
+              <label class="toggle-row"><span>Économie de mémoire <span class="hint">~200 Mo de moins, animations moins fluides</span></span><span class="toggle"><input type="checkbox" data-setting="lowMemory"><span></span></span></label>
+              <div class="toggle-row">Quitter Shadow Assistant<button type="button" class="ghost danger" id="quitBtn"><i data-icon="power"></i>Quitter</button></div>
             </div>
           </div>
-          <label class="toggle-row">Montrer le morceau à chaque changement<span class="toggle"><input type="checkbox" data-setting="musicReveal"><span></span></span></label>
-        </div>
-
-        <div class="card glass">
-          <h3><i data-icon="routine"></i>Routines</h3>
-          <p class="hint card-hint">Des étapes lancées d’un coup : ouvrir tes applis, régler le volume, lancer la musique… Maya peut aussi les lancer : « lance le mode travail ».</p>
-          <div id="routines"></div>
-          <button type="button" class="ghost add-routine" id="addRoutine"><i data-icon="plus"></i>Nouvelle routine</button>
-        </div>
-
-        <div class="card glass">
-          <h3><i data-icon="cpu"></i>Système</h3>
-          <label class="toggle-row">Son des notifications<span class="toggle"><input type="checkbox" data-setting="sound"><span></span></span></label>
-          <label class="toggle-row">Lancer au démarrage de Windows<span class="toggle"><input type="checkbox" data-setting="autostart"><span></span></span></label>
-          <label class="toggle-row"><span>Économie de mémoire <span class="hint">~200 Mo de moins, animations moins fluides</span></span><span class="toggle"><input type="checkbox" data-setting="lowMemory"><span></span></span></label>
-          <div class="toggle-row">Ouvrir / fermer le dock<span><kbd>Ctrl</kbd> <kbd>Alt</kbd> <kbd>Espace</kbd></span></div>
-          <div class="toggle-row">Quitter Shadow Assistant<button type="button" class="ghost danger" id="quitBtn"><i data-icon="power"></i>Quitter</button></div>
         </div>
       </div>
     </section>

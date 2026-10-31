@@ -24,15 +24,13 @@ Tes rappels, notes et clés sont conservés quand tu désinstalles ou mets à jo
 
 ### Windows
 
-Prérequis : Windows 10/11 x64, CMake ≥ 3.25, Ninja et MinGW-w64 (`g++`) dans le `PATH`. CLion fournit les trois.
+Prérequis : Windows 10/11 x64, CMake ≥ 3.25, Ninja et MinGW-w64 (`g++`) dans le `PATH`. [MSYS2](https://www.msys2.org) fournit les trois (voir [CONTRIBUTING.md](CONTRIBUTING.md)).
 
 ```powershell
 cmake --preset release
 cmake --build --preset release
 .\build\release\ShadowAssistant.exe
 ```
-
-Dans CLion : ouvrir le dossier, activer le profil **Release (MinGW)** (Réglages → Build → CMake), lancer la cible `ShadowAssistant`.
 
 Le dossier de sortie contient `ShadowAssistant.exe`, `WebView2Loader.dll`, `libwinpthread-1.dll` et `ui/` : ils doivent rester ensemble.
 
@@ -75,9 +73,9 @@ cmake --build build-deb && (cd build-deb && cpack -G DEB)
 - **Ctrl+Alt+Espace** : ouvrir / fermer le panneau. **Échap** : replier. **Ctrl+1…6** : changer d'onglet.
 - Icône dans la zone de notification : clic = ouvrir, clic droit = menu (garder affiché, réglages, quitter).
 - Linux : mêmes fonctions, avec trois différences — pas de flou du bureau (fond opaque), pas de détection du plein écran, et la recherche de fichiers parcourt ton dossier personnel (noms de fichiers seulement). Les clés API sont dans `~/.config/ShadowAssistant` (fichiers lisibles par toi seul).
-- Réglages → Apparition : mode **Masqué** (barre de progression au bord haut, durée réglable) ou **Languette**.
+- Réglages → Comportement : mode **Masqué** (barre de progression au bord haut, durée réglable) ou **Languette**.
 - Rappels : texte libre en français (« appeler Paul demain à 14h », « dans 20 min »), répétitions, notification Windows.
-- Claude, trois modes de connexion (Réglages → Claude → Connexion) :
+- Claude, trois modes de connexion (Réglages → Maya → Connexion) :
   - **Abonnement Pro** (par défaut) : le dock lance le CLI officiel `claude -p` (Claude Code, inclus dans Pro), sans outils, dans `%LOCALAPPDATA%\ShadowAssistant\claude-chat`. Les messages comptent dans les limites de l'abonnement, sans facturation API. Installation : `irm https://claude.ai/install.ps1 | iex` dans PowerShell, puis « Se connecter » dans les réglages.
   - **Clé API** : facturée à l'usage, chiffrée avec DPAPI dans `%APPDATA%\ShadowAssistant\apikey.bin`.
   - **Gratuit** : Gemini ou Groq avec votre propre clé ; sert aussi de secours si Claude échoue.

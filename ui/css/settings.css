@@ -1,6 +1,21 @@
-/* Onglet Réglages : sections, contrôles segmentés, curseurs, interrupteurs, routines. */
+/* Onglet Réglages : menu des pages, sections, contrôles segmentés, curseurs, interrupteurs, routines. */
 
-.settings { display: flex; flex-direction: column; gap: 10px; }
+/* Menu à gauche, une page à la fois à droite. Dock étroit : le menu se réduit à ses icônes. */
+.set-layout { display: flex; flex: 1; gap: 6px; min-height: 0; container-type: inline-size; }
+.set-nav { display: flex; flex: none; flex-direction: column; gap: 3px; width: 136px; padding-top: 6px; }
+.set-nav button { display: flex; justify-content: flex-start; align-items: center; gap: 9px; height: 34px; padding: 0 10px; border-radius: 10px; color: var(--fg2); font-size: 12.5px; }
+.set-nav button:hover { background: var(--hover); color: var(--fg); }
+.set-nav button.on { background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--fg); font-weight: 600; }
+.set-nav .ic { flex: none; width: 15px; height: 15px; }
+.set-nav button.on .ic { color: var(--accent); }
+@container (max-width: 580px) {
+  .set-nav { width: 40px; }
+  .set-nav button { justify-content: center; padding: 0; }
+  .set-nav span { display: none; }
+}
+
+.settings { margin-left: 0; padding-left: 4px; }
+.set-page { display: flex; flex-direction: column; gap: 10px; }
 .card { padding: 13px 15px 7px; border-radius: 16px; }
 .card h3 { display: flex; align-items: center; gap: 8px; margin: 0 0 4px; font: 650 13.5px var(--font-d); }
 .card h3 .ic { width: 16px; color: var(--accent); }
@@ -126,9 +141,6 @@ input[type=range]:active::-webkit-slider-thumb { transform: scale(1.25); }
 .toggle:active span::after { width: 23px; }
 .toggle input:checked:active + span::after { transform: translateX(11px); }
 
-/* Modèle gratuit (Claude › Connexion) : séparé des réglages propres à Claude. */
-.free-section { margin-top: 8px; border-top: 1px solid var(--stroke); }
-.free-section .toggle-row { border-top: 0; }
 #freeModel { width: 100%; }
 
 /* Routines : un bloc par routine, une ligne par étape (type + réglage). */
@@ -158,3 +170,4 @@ input[type=range]:active::-webkit-slider-thumb { transform: scale(1.25); }
 .swatches button { width: 24px; height: 24px; border-radius: 50%; background: linear-gradient(135deg, var(--a), var(--b)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .4), 0 4px 10px -4px var(--a); }
 .swatches button:hover { transform: scale(1.15); }
 .swatches button.on { box-shadow: 0 0 0 2px var(--glass-a), 0 0 0 4px var(--a), 0 4px 14px -2px var(--a); }
+html.linux #flareField { display: none; } /* Linux : pas d'évasement (voir --flare-pad) */

@@ -101,7 +101,7 @@ Modules ES (`<script type="module" src="js/main.js">`), sans dépendance externe
 | Commande | Arguments | Effet |
 | --- | --- | --- |
 | `ready` | — | La page est chargée : le natif répond `init` puis `state`. |
-| `config` | lignes `clé=valeur` | `mode`, `revealDelay`, `hideDelay`, `width`, `panelH`, `theme`, `sound`, `autostart`, `miniLyrics` (garde la page éveillée, dock caché, pendant une lecture). |
+| `config` | lignes `clé=valeur` | `mode`, `revealDelay`, `hideDelay`, `width`, `panelH`, `theme`, `sound`, `autostart`, `miniLyrics` (garde la page éveillée, dock caché, pendant une lecture : pilule de paroles ou carte musique). |
 | `open` / `bar` / `hide` | — | Ouvre le panneau / replie sur la barre / masque. |
 | `pin` | `0`/`1` | Garder affiché. |
 | `hold` | ms | Empêche le repli automatique pendant ms. |
@@ -223,7 +223,7 @@ git tag v0.1.0 && git push origin v0.1.0
 - **Ajouter un message vers la page** : `bridge::PostToPage("{\"t\":\"…\"}")` (utiliser `util::Json` pour les chaînes) et un `case` dans `onNative` (`ui/js/main.js`).
 - **Ajouter un module natif** : `src/<domaine>/nom.h` + `nom.cpp`, un `namespace nom`, et une ligne dans `add_executable` (`CMakeLists.txt`). Pour Linux : `src/linux/nom_linux.cpp` avec la même interface, et une ligne dans `cmake/linux.cmake`.
 - **Ajouter une fonctionnalité à l'interface** : `ui/js/features/nom.js` qui exporte `setupNom()` / `renderNom()`, appelés dans `init()` (`ui/js/main.js`) ; son style dans `ui/css/nom.css`, lié dans `index.html`. Pour un nouvel onglet : sa vue dans `index.html` et son entrée dans `NAV_TABS` (`ui/js/dock/dock.js`).
-- **Ajouter un réglage** : valeur par défaut dans `DEFAULTS` (`ui/js/core/settings.js`) et un contrôle avec `data-setting="nom"` dans `index.html` (segmenté, curseur ou interrupteur sont gérés automatiquement). S'il concerne le natif : l'ajouter à `NATIVE_KEYS` et `sendConfig()`, puis le lire dans `dock::ApplyConfig`.
+- **Ajouter un réglage** : valeur par défaut dans `DEFAULTS` (`ui/js/core/settings.js`) et un contrôle avec `data-setting="nom"` dans la bonne page (`.set-page`) de `index.html` : `maya`, `appearance`, `behavior`, `music`, `routines` ou `system` (segmenté, curseur ou interrupteur sont gérés automatiquement). Pour amener l'utilisateur sur une page : `switchTab('settings')` puis `openSettingsPage('…')`. S'il concerne le natif : l'ajouter à `NATIVE_KEYS` et `sendConfig()`, puis le lire dans `dock::ApplyConfig`.
 - **Ajouter un outil pour Claude** : définition dans `TOOLS` et exécution dans `execTool` (`ui/js/chat/tools.js`), libellé dans `toolHTML` (`ui/js/chat/chat.js`). Pour le mode Pro, documenter la ligne d'action dans `PRO_ACTIONS` (`prompts.js`) et la lire dans `commitCcAnswer` (`pro.js`).
 - **Changer la taille de la barre** : `kBarH`/`kInset` dans `src/app/dock.cpp` **et** `src/linux/dock_linux.cpp`, **et** `--bar-h`/`--inset` dans `ui/css/base.css`.
 
@@ -233,5 +233,5 @@ git tag v0.1.0 && git push origin v0.1.0
 - **Dans l'appli** : lancer avec `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=--remote-debugging-port=9222`, puis ouvrir `edge://inspect` ; ou appuyer sur F12 dans le dock.
 - **Lecteur dans l'aperçu** : `window.__preview.onNative({t:'media', active:true, title:'…', status:'playing', pos:0, dur:200000, at:Date.now(), …})` simule un morceau, `window.__preview.previewLyrics([{t:0, text:'…'}])` des paroles factices.
 - **Linux, interface seule** : comme sous Windows (serveur local, mode aperçu). **Linux, dans l'appli** : lancer `ShadowAssistant` depuis le dossier de build ; sous WSL, WSLg fournit l'affichage (X11), mais ignore les positions de fenêtre demandées et donne le focus à l'ouverture. Pour suivre la fenêtre sans outil graphique, un petit programme Xlib qui interroge `XQueryTree` suffit.
-- **Plantage en Release seulement** : compiler en `RelWithDebInfo` et lancer sous le gdb de CLion (`bin\gdb\win\x64\bin\gdb.exe`) pour avoir la pile d'appels.
+- **Plantage en Release seulement** : compiler avec le preset `relwithdebinfo` et lancer sous `gdb` (paquet `mingw-w64-x86_64-gdb` de MSYS2) pour avoir la pile d'appels.
 - **Mode Pro sans consommer de quota** : un faux `claude.exe` placé plus tôt dans le `PATH` (ni `%USERPROFILE%\.local\bin` ni winget ne doivent contenir le vrai) reçoit les mêmes arguments.

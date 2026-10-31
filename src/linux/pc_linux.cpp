@@ -34,6 +34,7 @@ namespace {
 
 constexpr size_t kMaxResults = 15;
 constexpr size_t kMaxWords = 6;
+constexpr size_t kMaxCandidates = 5000;
 constexpr long kMaxVisited = 500000;                       // garde-fou sur de très gros dossiers
 constexpr std::chrono::seconds kMaxDuration{5};
 
@@ -43,6 +44,22 @@ std::mutex g_foundMutex;
 std::string Lower(std::string s) {
     std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) { return (char)std::tolower(c); });
     return s;
+}
+
+// Minuscules sans accents (« Été » -> « ete ») : pour comparer les noms de fichiers.
+std::string Fold(const std::string& s) {
+    if (!g_utf8_validate(s.c_str(), -1, nullptr)) return Lower(s);
+    gchar* nfd = g_utf8_normalize(s.c_str(), -1, G_NORMALIZE_NFD); // lettre + accent séparés
+    std::string out;
+    for (const gchar* p = nfd; *p; p = g_utf8_next_char(p)) {
+        gunichar c = g_utf8_get_char(p);
+        if (c < 0x300 || c > 0x36F) out += std::string(p, g_utf8_next_char(p));
+    }
+    g_free(nfd);
+    gchar* low = g_utf8_strdown(out.c_str(), -1);
+    out = low;
+    g_free(low);
+    return out;
 }
 
 void Reply(const std::string& id, const std::string& fields) {
@@ -58,11 +75,27 @@ std::vector<std::string> Words(const std::string& text) {
     std::vector<std::string> out;
     std::string cur;
     auto flush = [&] {
-        if (!cur.empty() && out.size() < kMaxWords) out.push_back(Lower(cur));
+        if (!cur.empty() && out.size() < kMaxWords) out.push_back(Fold(cur));
         cur.clear();
     };
     for (unsigned char c : text) {
         if (std::isalnum(c) || c >= 0x80 || c == '-' || c == '_') cur += (char)c; // octets UTF-8 conservés
+        else flush();
+    }
+    flush();
+    return out;
+}
+
+// Extensions séparées par des virgules, des espaces ou des points : « pdf, docx » -> {pdf, docx}.
+std::vector<std::string> Extensions(const std::string& text) {
+    std::vector<std::string> out;
+    std::string cur;
+    auto flush = [&] {
+        if (!cur.empty() && out.size() < 5 && std::find(out.begin(), out.end(), cur) == out.end()) out.push_back(cur);
+        cur.clear();
+    };
+    for (unsigned char c : text) {
+        if (std::isalnum(c) && cur.size() < 8) cur += (char)std::tolower(c);
         else flush();
     }
     flush();
@@ -85,8 +118,8 @@ bool ParseDate(const std::string& s, std::time_t& out) {
 }
 
 struct Query {
-    std::vector<std::string> words;
-    std::string ext; // sans point, en minuscules
+    std::vector<std::string> words; // sans accents, en minuscules
+    std::vector<std::string> exts;  // sans point, en minuscules
     bool hasFrom = false, hasTo = false;
     std::time_t from = 0, toExclusive = 0;
 };
@@ -94,17 +127,30 @@ struct Query {
 struct Hit {
     std::string path, name;
     long long modified = 0, size = 0;
+    int score = 0;
+    bool all = true; // contient tous les mots
 };
 
-bool Matches(const Query& q, const std::string& name) {
-    std::string low = Lower(name);
-    for (const auto& w : q.words)
-        if (low.find(w) == std::string::npos) return false;
-    if (!q.ext.empty()) {
-        size_t dot = low.rfind('.');
-        if (dot == std::string::npos || low.substr(dot + 1) != q.ext) return false;
+bool ExtMatches(const Query& q, const std::string& name) {
+    if (q.exts.empty()) return true;
+    size_t dot = name.rfind('.');
+    if (dot == std::string::npos) return false;
+    return std::find(q.exts.begin(), q.exts.end(), Lower(name.substr(dot + 1))) != q.exts.end();
+}
+
+// 0 = le nom ne contient aucun mot. Début de mot > ailleurs ; tous les mots = bonus.
+int Score(const Query& q, const std::string& name, bool& all) {
+    std::string low = Fold(name);
+    int score = 0, found = 0;
+    for (const auto& w : q.words) {
+        size_t at = low.find(w);
+        if (at == std::string::npos) continue;
+        ++found;
+        score += (at == 0 || !std::isalnum((unsigned char)low[at - 1])) ? 15 : 10;
     }
-    return true;
+    all = found == (int)q.words.size();
+    if (all && found) score += 20;
+    return score;
 }
 
 std::vector<Hit> Walk(const Query& q) {
@@ -125,21 +171,33 @@ std::vector<Hit> Walk(const Query& q) {
         }
         if (entry.is_directory(e2)) {
             if ((!name.empty() && name[0] == '.') || name == "node_modules") it.disable_recursion_pending();
-        } else if (entry.is_regular_file(e2) && !(name[0] == '.') && Matches(q, name)) {
-            auto mtime = entry.last_write_time(e2);
-            std::time_t t = std::chrono::system_clock::to_time_t(std::chrono::clock_cast<std::chrono::system_clock>(mtime));
-            if ((!q.hasFrom || t >= q.from) && (!q.hasTo || t < q.toExclusive)) {
-                Hit h;
-                h.path = entry.path().string();
-                h.name = name;
-                h.modified = (long long)t * 1000;
-                h.size = (long long)entry.file_size(e2);
-                hits.push_back(std::move(h));
+        } else if (entry.is_regular_file(e2) && !(name[0] == '.') && ExtMatches(q, name)) {
+            bool all = true;
+            int score = q.words.empty() ? 0 : Score(q, name, all);
+            // Un seul mot suffit pour être candidat ; passé le plafond, seuls ceux qui les ont tous comptent.
+            if ((q.words.empty() || score > 0) && (all || hits.size() < kMaxCandidates)) {
+                auto mtime = entry.last_write_time(e2);
+                std::time_t t = std::chrono::system_clock::to_time_t(std::chrono::clock_cast<std::chrono::system_clock>(mtime));
+                if ((!q.hasFrom || t >= q.from) && (!q.hasTo || t < q.toExclusive)) {
+                    Hit h;
+                    h.path = entry.path().string();
+                    h.name = name;
+                    h.modified = (long long)t * 1000;
+                    h.size = (long long)entry.file_size(e2);
+                    h.score = score;
+                    h.all = all;
+                    hits.push_back(std::move(h));
+                }
             }
         }
         it.increment(ec);
     }
-    std::sort(hits.begin(), hits.end(), [](const Hit& a, const Hit& b) { return a.modified > b.modified; });
+    // Des fichiers contenant tous les mots : on ne garde qu'eux, sinon les approchants.
+    if (std::any_of(hits.begin(), hits.end(), [](const Hit& h) { return h.all; }))
+        hits.erase(std::remove_if(hits.begin(), hits.end(), [](const Hit& h) { return !h.all; }), hits.end());
+    std::sort(hits.begin(), hits.end(), [](const Hit& a, const Hit& b) {
+        return a.score != b.score ? a.score > b.score : a.modified > b.modified;
+    });
     if (hits.size() > kMaxResults) hits.resize(kMaxResults);
     return hits;
 }
@@ -235,15 +293,14 @@ void Search(const std::string& payload) {
 
     Query q;
     q.words = Words(f[1]);
-    for (unsigned char c : f[2])
-        if (std::isalnum(c) && q.ext.size() < 8) q.ext += (char)std::tolower(c);
+    q.exts = Extensions(f[2]);
     q.hasFrom = ParseDate(f[3], q.from);
     std::time_t to = 0;
     if (ParseDate(f[4], to)) {
         q.hasTo = true;
         q.toExclusive = to + 24 * 3600; // jour inclus
     }
-    if (q.words.empty() && q.ext.empty() && !q.hasFrom && !q.hasTo) {
+    if (q.words.empty() && q.exts.empty() && !q.hasFrom && !q.hasTo) {
         ReplyError(f[0], "Donne au moins un mot, une extension ou une date.");
         return;
     }

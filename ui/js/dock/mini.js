@@ -34,7 +34,7 @@ function update() {
   const width = wantedWidth();
   if (width === sent) return;
   sent = width;
-  if (width) pill.style.setProperty('--mini-w', `${width}px`);
+  if (width) document.documentElement.style.setProperty('--mini-w', `${width}px`);
   send('mini', String(width));
 }
 
