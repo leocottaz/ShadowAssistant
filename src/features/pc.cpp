@@ -391,6 +391,11 @@ void RunRoutine(const std::string& steps) {
                 bool playing = media::IsPlaying();
                 if ((value == "play" && !playing) || (value == "pause" && playing)) media::Command("toggle");
                 else if (value == "next") media::Command("next");
+                else if (value == "previous") media::Command("prev");
+            } else if (type == "mute") {
+                SetMute(value);
+            } else if (type == "lock") {
+                LockWorkStation();
             } else if (type == "wait") {
                 Sleep((DWORD)std::clamp(std::atoi(value.c_str()), 0, 60) * 1000);
             }
@@ -399,18 +404,30 @@ void RunRoutine(const std::string& steps) {
     }).detach();
 }
 
-void SetVolume(int percent) {
-    percent = std::clamp(percent, 0, 100);
+static bool DefaultEndpointVolume(Com<IAudioEndpointVolume>& volume) {
     Com<IMMDeviceEnumerator> devices;
     Com<IMMDevice> device;
+    return SUCCEEDED(CoCreateInstance(__uuidof(MMDeviceEnumerator), nullptr, CLSCTX_ALL, __uuidof(IMMDeviceEnumerator),
+                                      (void**)devices.put())) &&
+           SUCCEEDED(devices->GetDefaultAudioEndpoint(eRender, eConsole, device.put())) &&
+           SUCCEEDED(device->Activate(__uuidof(IAudioEndpointVolume), CLSCTX_ALL, nullptr, (void**)volume.put()));
+}
+
+void SetVolume(int percent) {
+    percent = std::clamp(percent, 0, 100);
     Com<IAudioEndpointVolume> volume;
-    if (FAILED(CoCreateInstance(__uuidof(MMDeviceEnumerator), nullptr, CLSCTX_ALL, __uuidof(IMMDeviceEnumerator),
-                                (void**)devices.put())) ||
-        FAILED(devices->GetDefaultAudioEndpoint(eRender, eConsole, device.put())) ||
-        FAILED(device->Activate(__uuidof(IAudioEndpointVolume), CLSCTX_ALL, nullptr, (void**)volume.put())))
-        return;
+    if (!DefaultEndpointVolume(volume)) return;
     volume->SetMasterVolumeLevelScalar(percent / 100.0f, nullptr);
     volume->SetMute(percent == 0, nullptr);
+}
+
+void SetMute(const std::string& mode) {
+    Com<IAudioEndpointVolume> volume;
+    if (!DefaultEndpointVolume(volume)) return;
+    BOOL muted = FALSE;
+    if (mode == "toggle") volume->GetMute(&muted), muted = !muted;
+    else muted = mode != "off";
+    volume->SetMute(muted, nullptr);
 }
 
 void PickFile(const std::string& id, HWND owner) {
