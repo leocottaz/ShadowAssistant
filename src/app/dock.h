@@ -25,6 +25,7 @@ struct Config {
     bool dark = true;
     bool sound = true;
     bool miniLyrics = true; // mini-dock des paroles quand le dock est rangé
+    bool fullscreenReveal = false; // la souris en haut de l'écran ouvre le dock devant une appli plein écran
 };
 
 #ifdef _WIN32

@@ -275,10 +275,12 @@ void Poll() {
     bool atTopEdge = p.y <= m.top + 1 && p.y >= m.top - 2 && p.x >= cx - half && p.x <= cx + half &&
                      !MonitorFromPoint({p.x, m.top - 1}, MONITOR_DEFAULTTONULL);
     ULONGLONG now = GetTickCount64();
-    // En mode languette, survoler ce qui dépasse (languette ou mini-dock) suffit.
+    // En mode languette, survoler ce qui dépasse (languette ou mini-dock) suffit. Devant une appli
+    // plein écran rien ne dépasse : seul le bord haut compte, et seulement si le réglage l'autorise.
     RECT tab = TargetRect(g_state == State::Mini ? State::Mini : State::Peek);
     InflateRect(&tab, Px(6), Px(4));
-    bool wantsReveal = (atTopEdge || (g_cfg.mode == 1 && PtInRect(&tab, p))) && !mouseDown && !fullscreen;
+    bool overTab = g_cfg.mode == 1 && !fullscreen && PtInRect(&tab, p);
+    bool wantsReveal = (atTopEdge || overTab) && !mouseDown && (!fullscreen || g_cfg.fullscreenReveal);
     if (g_waitLeave) {
         if (!wantsReveal) g_waitLeave = false;
         wantsReveal = false;
@@ -288,7 +290,7 @@ void Poll() {
     switch (g_state) {
         case State::Hidden:
             if (RestState() != State::Hidden) SetState(RestState());
-            else if (wantsReveal) SetState(g_cfg.revealDelay <= 0 ? State::Bar : State::Progress);
+            else if (wantsReveal) SetState(g_cfg.mode == 1 || g_cfg.revealDelay <= 0 ? State::Bar : State::Progress);
             break;
         case State::Peek:
         case State::Mini:
@@ -499,6 +501,7 @@ void ApplyConfig(const std::string& payload) {
         else if (k == "sound") c.sound = v == "1";
         else if (k == "autostart") wantAutostart = v == "1";
         else if (k == "miniLyrics") c.miniLyrics = v == "1";
+        else if (k == "fullscreenReveal") c.fullscreenReveal = v == "1";
     }
     bool themeChanged = c.dark != g_cfg.dark;
     bool geometryChanged = c.mode != g_cfg.mode || c.width != g_cfg.width || c.panelH != g_cfg.panelH;

@@ -103,7 +103,7 @@ Modules ES (`<script type="module" src="js/main.js">`), sans dépendance externe
 | Commande | Arguments | Effet |
 | --- | --- | --- |
 | `ready` | — | La page est chargée : le natif répond `init` puis `state`. |
-| `config` | lignes `clé=valeur` | `mode`, `revealDelay`, `hideDelay`, `width`, `panelH`, `theme`, `sound`, `autostart`, `miniLyrics` (garde la page éveillée, dock caché, pendant une lecture : pilule de paroles ou carte musique). |
+| `config` | lignes `clé=valeur` | `mode`, `revealDelay`, `hideDelay`, `width`, `panelH`, `theme`, `sound`, `autostart`, `fullscreenReveal` (Windows : le bord haut ouvre le dock devant une appli plein écran), `miniLyrics` (garde la page éveillée, dock caché, pendant une lecture : pilule de paroles ou carte musique). |
 | `open` / `bar` / `hide` | — | Ouvre le panneau / replie sur la barre / masque. |
 | `pin` | `0`/`1` | Garder affiché. |
 | `hold` | ms | Empêche le repli automatique pendant ms. |

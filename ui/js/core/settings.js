@@ -12,7 +12,7 @@ const ACCENTS = {
 };
 
 const DEFAULTS = {
-  mode: 0, revealDelay: 550, hideDelay: 700, width: 680, panelH: 540, flare: 18,
+  mode: 0, revealDelay: 550, hideDelay: 700, fullscreenReveal: false, width: 680, panelH: 540, flare: 18,
   theme: 'dark', accent: 'violet', reduceMotion: false, sound: true, autostart: false, lowMemory: true,
   backend: 'pro', ccModel: 'default',
   freeService: 'gemini', freeModel: '', freeFallback: true, // modèle gratuit ('' = automatique)
@@ -21,7 +21,7 @@ const DEFAULTS = {
   updateCheck: true, updateSkipped: '', // mises à jour : vérification automatique, version ignorée (« v1.2.3 »)
 };
 const NUMERIC = new Set(['mode', 'revealDelay', 'hideDelay', 'width', 'panelH', 'flare']);
-const NATIVE_KEYS = new Set(['mode', 'revealDelay', 'hideDelay', 'width', 'panelH', 'theme', 'sound', 'autostart', 'lyricsOpen', 'miniLyrics', 'musicReveal']);
+const NATIVE_KEYS = new Set(['mode', 'revealDelay', 'hideDelay', 'width', 'panelH', 'theme', 'sound', 'autostart', 'lyricsOpen', 'miniLyrics', 'musicReveal', 'fullscreenReveal']);
 const MODEL_NAMES = { 'claude-opus-5-5': 'Opus 5.5', 'claude-sonnet-5-5': 'Sonnet 5.5', 'claude-haiku-5-5': 'Haiku 5.5' };
 const CC_MODEL_NAMES = { default: 'modèle par défaut', opus: 'Opus', sonnet: 'Sonnet', haiku: 'Haiku' };
 const EFFORT_NAMES = { low: 'rapide', medium: 'équilibrée', high: 'approfondie' };
@@ -34,6 +34,7 @@ function sendConfig() {
     `mode=${settings.mode}`, `revealDelay=${settings.revealDelay}`, `hideDelay=${settings.hideDelay}`,
     `width=${settings.width}`, `panelH=${settings.panelH}`, `theme=${settings.theme}`,
     `sound=${settings.sound ? 1 : 0}`, `autostart=${settings.autostart ? 1 : 0}`,
+    `fullscreenReveal=${settings.fullscreenReveal ? 1 : 0}`,
     // Le natif garde la page éveillée pendant une lecture : elle seule demande le mini-dock et la carte musique.
     `miniLyrics=${(settings.lyricsOpen && settings.miniLyrics) || settings.musicReveal ? 1 : 0}`,
   ].join('\n'));
