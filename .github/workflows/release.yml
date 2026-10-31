@@ -79,6 +79,13 @@ jobs:
         with:
           path: dist
           merge-multiple: true
+      # L'updater de l'application (src/features/updater.cpp) vérifie l'installateur d'après ce fichier.
+      - name: Empreintes SHA-256
+        working-directory: dist
+        run: |
+          ls -l
+          sha256sum ShadowAssistant-* shadow-assistant_* > SHA256SUMS
+          cat SHA256SUMS
       - uses: softprops/action-gh-release@v2
         with:
           files: dist/*

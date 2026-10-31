@@ -94,6 +94,9 @@ Lance l'exe avec `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=--remote-debugging-port=
 
 Autres scripts dans `tools/dev/` : captures (`shot.ps1`), mémoire (`mem.ps1`, `mem-flags.ps1`), fluidité (`frames.ps1`, `gpu.ps1`).
 
+### Mises à jour
+`powershell -File tools\test\updater\run.ps1` teste `src/features/updater.cpp` contre un serveur local et un faux `Setup.exe` (jamais GitHub, jamais ton installation). Ne définis **jamais** `SHADOW_UPDATE_BASE` ni `SHADOW_UPDATE_ALLOW_HTTP` dans un build livré : ils n'existent que pour ce banc d'essai. Le nom de l'installateur (`OutputBaseFilename` du `.iss`, `AssetName()`, `SHA256SUMS`) forme un contrat : change les trois ensemble.
+
 ### Règles de test
 - **Musique** : n'envoie aucune commande (pause, suivant, position) à ta vraie lecture. Utilise `tools/dev/fake-session.ps1`, qui crée une session Windows muette, et vérifie que c'est bien elle qui est suivie avant chaque commande.
 - **Paroles** : teste avec des lignes fictives (`window.__preview.previewLyrics([...])`). Ne mets jamais de vraies paroles dans le dépôt, une capture ou une issue.

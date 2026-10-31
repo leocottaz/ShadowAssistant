@@ -10,6 +10,7 @@
 #include "features/media.h"
 #include "features/pc.h"
 #include "features/reminders.h"
+#include "features/updater.h"
 #include "web/webview_host.h"
 
 #include <shellapi.h>
@@ -54,7 +55,8 @@ void HandleMessage(const std::string& msg) {
     if (cmd == "ready") {
         PostToPage("{\"t\":\"init\"," + api_key::StatusJson() + ",\"autostart\":" +
                    (autostart::Enabled() ? "true" : "false") + ",\"lowMemory\":" +
-                   (webview::LowMemory() ? "true" : "false") + "," + api_key::FreeStatusJson() + "}");
+                   (webview::LowMemory() ? "true" : "false") + "," + api_key::FreeStatusJson() + ",\"version\":" +
+                   util::Json(updater::Version()) + ",\"canUpdate\":" + (updater::CanSelfUpdate() ? "true" : "false") + "}");
         dock::OnPageReady();
     } else if (cmd == "config") {
         dock::ApplyConfig(arg);
@@ -138,6 +140,8 @@ void HandleMessage(const std::string& msg) {
         pc::SetVolume(std::atoi(arg.c_str()));
     } else if (cmd == "pickfile") {
         pc::PickFile(arg, g_window);
+    } else if (cmd == "update") { // tag « v1.2.3 » : télécharge, vérifie et lance l'installateur
+        updater::Install(arg);
     } else if (cmd == "openurl") {
         if (arg.rfind("https://", 0) == 0 || arg.rfind("http://", 0) == 0)
             ShellExecuteW(nullptr, L"open", util::Widen(arg).c_str(), nullptr, nullptr, SW_SHOWNORMAL);

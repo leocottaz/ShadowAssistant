@@ -18,6 +18,7 @@ const DEFAULTS = {
   freeService: 'gemini', freeModel: '', freeFallback: true, // modèle gratuit ('' = automatique)
   musicSource: 'deezer', musicReveal: true, lyricsOpen: true, miniLyrics: true, musicTint: true,
   model: 'claude-opus-5-5', effort: 'medium', customInstr: '', lastTab: 'claude', settingsPage: 'maya',
+  updateCheck: true, updateSkipped: '', // mises à jour : vérification automatique, version ignorée (« v1.2.3 »)
 };
 const NUMERIC = new Set(['mode', 'revealDelay', 'hideDelay', 'width', 'panelH', 'flare']);
 const NATIVE_KEYS = new Set(['mode', 'revealDelay', 'hideDelay', 'width', 'panelH', 'theme', 'sound', 'autostart', 'lyricsOpen', 'miniLyrics', 'musicReveal']);

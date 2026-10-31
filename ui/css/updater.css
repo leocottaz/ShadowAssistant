@@ -1,0 +1,49 @@
+/* Mises à jour : bannière du panneau et carte des Réglages (js/features/updater.js). */
+
+.update-banner {
+  position: fixed;
+  top: calc(var(--inset) + var(--bar-h) + var(--panel-h) - 62px);
+  left: 50%;
+  z-index: 5;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 4px 12px;
+  width: min(540px, calc(100vw - 48px));
+  padding: 7px 8px 7px 15px;
+  border: 1px solid var(--stroke-hi);
+  border-radius: 20px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 55%, #1a1a24), color-mix(in srgb, var(--accent) 40%, #1a1a24));
+  box-shadow: 0 14px 34px -10px var(--shadow), 0 0 26px -8px var(--accent);
+  color: #fff;
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, 16px) scale(.94);
+  transition: opacity .3s, transform .5s var(--spring);
+}
+.st-panel .update-banner:not([hidden]) { opacity: 1; pointer-events: auto; transform: translate(-50%, 0); }
+.update-banner.error { background: linear-gradient(180deg, #6b2a35, #4d1f28); }
+
+.update-text { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.update-text b { flex: none; font-weight: 650; }
+.update-text small { overflow: hidden; color: rgba(255, 255, 255, .78); font-size: 11.5px; text-overflow: ellipsis; white-space: nowrap; }
+
+.update-actions { display: flex; align-items: center; gap: 6px; }
+.update-actions .primary { height: 30px; background: #fff; box-shadow: none; color: #1a1a24; }
+.update-actions .primary:disabled { opacity: .6; cursor: default; }
+.update-actions .ghost { border-color: rgba(255, 255, 255, .28); background: rgba(255, 255, 255, .1); color: #fff; }
+.update-actions .ghost:hover { background: rgba(255, 255, 255, .2); }
+
+.update-progress {
+  grid-column: 1 / -1;
+  height: 4px;
+  margin-top: 6px;
+  overflow: hidden;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, .22);
+}
+.update-progress span { display: block; width: 0; height: 100%; border-radius: inherit; background: #fff; transition: width .3s var(--smooth); }
+
+/* Carte « Mises à jour » des Réglages (page Système) */
+#updateStatus { display: block; margin-top: 8px; min-height: 16px; }
+.update-row-actions { display: flex; gap: 8px; }

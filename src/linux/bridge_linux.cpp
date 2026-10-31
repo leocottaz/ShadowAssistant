@@ -12,6 +12,7 @@
 #include "features/media.h"
 #include "features/pc.h"
 #include "features/reminders.h"
+#include "features/updater.h"
 #include "linux/host.h"
 
 #include <glib.h>
@@ -50,7 +51,8 @@ void HandleMessage(const std::string& msg) {
 
     if (cmd == "ready") {
         PostToPage("{\"t\":\"init\"," + api_key::StatusJson() + ",\"autostart\":" + (autostart::Enabled() ? "true" : "false") +
-                   ",\"lowMemory\":false," + api_key::FreeStatusJson() + "}");
+                   ",\"lowMemory\":false," + api_key::FreeStatusJson() + ",\"version\":" + util::Json(updater::Version()) +
+                   ",\"canUpdate\":" + (updater::CanSelfUpdate() ? "true" : "false") + "}");
         dock::OnPageReady();
     } else if (cmd == "config") {
         dock::ApplyConfig(arg);
@@ -86,6 +88,8 @@ void HandleMessage(const std::string& msg) {
         dock::HideByUser();
     } else if (cmd == "quit") {
         host::Quit();
+    } else if (cmd == "update") {
+        updater::Install(arg);
     } else if (cmd == "openurl") {
         if (arg.rfind("https://", 0) == 0 || arg.rfind("http://", 0) == 0) host::OpenUrl(arg);
 

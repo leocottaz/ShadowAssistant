@@ -13,6 +13,7 @@ import { setupRoutines } from './features/routines.js';
 import { setupTimer, renderTimer, finishTimer, syncTimer } from './features/timer.js';
 import { renderChat, focusComposer, setupChat } from './chat/chat.js';
 import { onMedia, setupMusic, connectMusic, previewLyrics, fetchLyrics, cleanTitle } from './features/music.js';
+import { setupUpdater, onUpdateInit, onUpdateMessage } from './features/updater.js';
 
 function onNative(m) {
   switch (m.t) {
@@ -31,6 +32,7 @@ function onNative(m) {
       if (!knownModels().length) testFree(true); // liste des modèles gratuits, si une clé est là
       renderSettings();
       checkClaudeCode();
+      onUpdateInit(m);
       if (!store.get('welcomed', false)) {
         store.set('welcomed', true);
         setTimeout(() => { switchTab('settings'); openSettingsPage('maya'); send('open'); setTimeout(() => $('#keyInput').focus(), 400); }, 1400);
@@ -56,6 +58,7 @@ function onNative(m) {
     case 'fire': fireReminder(m.id); break;
     case 'timerdone': finishTimer(); break;
     case 'media': onMedia(m); break;
+    case 'update': onUpdateMessage(m); break;
     case 'reply': onReply(m); break;
     case 'hotkey': switchTab('claude'); focusComposer(); break;
     case 'show': switchTab(m.tab); if (m.tab === 'claude') focusComposer(); break;
@@ -77,6 +80,7 @@ function init() {
   setupChat();
   setupMusic();
   setupGlobal();
+  setupUpdater();
   renderSettings();
   renderKey();
   renderCc();
@@ -108,7 +112,7 @@ function init() {
     // Aperçu dans un navigateur : on affiche directement le panneau. window.__preview permet
     // de simuler des messages du natif depuis la console (ex. un morceau en cours).
     document.body.classList.add('preview');
-    window.__preview = { onNative, previewLyrics, fetchLyrics, cleanTitle };
+    window.__preview = { onNative, previewLyrics, fetchLyrics, cleanTitle, updater: { onUpdateInit, onUpdateMessage } };
     setTimeout(() => setState('panel', {}), 60);
   }
 }

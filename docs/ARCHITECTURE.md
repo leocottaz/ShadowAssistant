@@ -58,6 +58,7 @@ Chaque module expose une petite interface dans son `.h` (un `namespace` : `dock:
 | `features/reminders.*` | Liste synchronisée depuis la page ; vérifie les échéances chaque seconde et déclenche notification + apparition du dock. Tient aussi la fin du minuteur (`SetTimerEnd`). |
 | `features/media.*` | Lecteur : thread qui interroge les contrôles multimédias de Windows (GlobalSystemMediaTransportControls) toutes les 400 ms, choisit la session (Deezer, ou toutes les sources), lit titre/pochette/position et exécute lecture/pause/suivant/précédent/position. Interfaces WinRT déclarées à la main (voir l'avertissement en tête de fichier). |
 | `features/pc.*` | Actions sur le PC : recherche de fichiers (index Windows Search via OLE DB, dossier de l'utilisateur hors AppData, mots nettoyés), ouverture d'un résultat (seulement un chemin déjà renvoyé ; exécutables et scripts → dossier sélectionné), routines (thread : ouvrir, volume Core Audio, musique, attendre), fenêtre « Ouvrir ». |
+| `features/updater.*` | Mise à jour (voir [Mises à jour](#mises-à-jour)) : `updater_common.cpp` (version compilée, validation du tag, lecture de `SHA256SUMS`), `updater.cpp` (Windows : téléchargement WinHTTP, SHA-256 CNG, lancement de `Setup.exe`). |
 | `common/util.h` · `util.cpp` · `util_common.cpp` | JSON, découpage, base64 (`util_common.cpp`, commun) ; UTF-8/UTF-16 et dossiers Windows (`util.cpp`). |
 
 Les `.h` partagés (`dock.h`, `bridge.h`, `tray.h`, `pc.h`, `util.h`) gardent ce qui touche à Windows derrière `#ifdef _WIN32`.
@@ -83,6 +84,7 @@ Modules ES (`<script type="module" src="js/main.js">`), sans dépendance externe
 | `js/features/timer.js` | Minuteur : temps limité (compte à rebours) ou illimité (chronomètre), calculé par horodatages ; texte de la barre (`timerLabel`). |
 | `js/features/music.js` | Mini-lecteur de la barre et onglet Musique : position interpolée, barre de progression, couleur de la pochette, paroles LRCLIB (synchronisées au format LRC, ou texte simple), ligne en cours pour le mini-dock (`updateMini`). |
 | `js/features/files.js` | Recherche de fichiers pour Claude : résultats rangés par recherche (cartes cliquables), ouverture par numéro dans la dernière recherche, contexte du mode Pro. |
+| `js/features/updater.js` | Mises à jour : interroge l'API GitHub (`releases/latest`) au démarrage puis toutes les 6 h, compare les versions, affiche la bannière (`#updateBanner`, visible panneau ouvert) et la carte des Réglages → Système ; envoie `update` au natif au clic. |
 | `js/features/routines.js` | Routines : données, éditeur des Réglages, lancement (`routine` vers le natif), recherche par nom pour Claude. |
 | `js/chat/connection.js` | Section « Connexion » des Réglages : statut de Claude Code, clé API, clés gratuites. |
 | `js/chat/chat.js` | Conversation : état (`convo`, `turn`), envoi, évènements de streaming, rendu. |
@@ -121,6 +123,7 @@ Modules ES (`<script type="module" src="js/main.js">`), sans dépendance externe
 | `ccstatus` / `cclogin` | — | Cherche Claude Code / ouvre une console de connexion. |
 | `cancel` | id | Annule une requête `http` ou `cc`. |
 | `openurl` | URL http(s) | Ouvre le navigateur. |
+| `update` | tag `v1.2.3` | Télécharge, vérifie et lance l'installateur de cette version → messages `update`. Le natif refuse tout ce qui n'est pas `vN.N.N`. |
 | `search` | id, mots, extension, du, au | Recherche de fichiers → `reply` avec `results` (`path`, `name`, `modified`, `size`). |
 | `openfound` | chemin | Ouvre un fichier déjà renvoyé par `search` (sinon rien). |
 | `routine` | lignes `type\tvaleur` (`open`, `volume`, `music`, `wait`) | Exécute une routine dans un thread natif. |
@@ -132,7 +135,8 @@ Modules ES (`<script type="module" src="js/main.js">`), sans dépendance externe
 
 | `t` | Champs | Sens |
 | --- | --- | --- |
-| `init` | `hasKey`, `keyHint`, `autostart`, `lowMemory`, `freeKeys` | Réponse à `ready`. |
+| `init` | `hasKey`, `keyHint`, `autostart`, `lowMemory`, `freeKeys`, `version`, `canUpdate` | Réponse à `ready`. `version` : numéro de l'exécutable (`0.0.0` = build de développement). `canUpdate` : copie installée par `Setup.exe`. |
+| `update` | `state` (`downloading`, `verifying`, `installing`, `restarting`, `error`), `pct`, `msg` | Avancement d'une mise à jour. Sur `restarting`, la page envoie `quit` : l'installateur relance le dock. |
 | `freekey` | `service`, `ok`, `freeKeys` | Résultat de `freekey` / `delfreekey`. |
 | `state` | `s`, `delay`, `pinned` | Nouvel état du dock. |
 | `key` | `ok`, `hasKey`, `keyHint` | Résultat de `key`/`delkey`. |
@@ -196,6 +200,23 @@ Limites connues (voir aussi `Pièges` dans les notes) :
 | Clés (Anthropic, Groq, Gemini) | `~/.config/ShadowAssistant/apikey`, `groqkey`, `geminikey` (0600) |
 | Dossier de travail de Claude Code | `~/.local/share/ShadowAssistant/claude-chat` |
 | Lancement à l'ouverture de session | `~/.config/autostart/shadow-assistant.desktop` |
+
+## Mises à jour
+
+**Répartition** : la page cherche et propose ; le natif ne fait que ce qui est sensible, **au clic** de l'utilisateur.
+
+1. `ui/js/features/updater.js` appelle `https://api.github.com/repos/leocottaz/ShadowAssistant/releases/latest` (au démarrage si la dernière vérification date de plus de 6 h, puis toutes les 6 h ; réglage « Vérifier automatiquement »). Ignorés : brouillons, préversions, tags qui ne sont pas `vN.N.N`, version déjà ignorée. Une notification native est envoyée une seule fois par version.
+2. Sans clic, rien n'est téléchargé. Au clic sur « Mettre à jour », la page envoie `update\n<tag>`.
+3. `updater::Install` (Windows) : refuse si le tag n'est pas `vN.N.N` ou si la copie n'a pas été installée par `Setup.exe` (`unins000.exe` absent) ; télécharge `SHA256SUMS` puis `ShadowAssistant-<tag>-windows-x64-setup.exe` **depuis `https://github.com/leocottaz/ShadowAssistant/releases/download/<tag>/` uniquement** (la page ne fournit ni URL ni empreinte), vérifie le SHA-256 (CNG), supprime le fichier et s'arrête s'il ne correspond pas, sinon lance `Setup.exe /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /RELAUNCH=1`.
+4. `Setup.exe` arrête le dock installé, remplace les fichiers, puis le relance (entrée `[Run]` conditionnée par `/RELAUNCH=1`).
+
+Garde-fous : HTTPS seulement, taille limitée (300 Mo), redirections suivies sauf HTTPS → HTTP. **Limite connue** : l'empreinte vient de la même release que le fichier ; un compte GitHub compromis pourrait publier les deux. Une vraie protection demande une signature par une clé gardée hors de GitHub (à faire), et `Setup.exe` n'est pas signé (SmartScreen).
+
+**Version** : `SHADOW_VERSION` (CMake) → `SHADOW_VERSION_STR`, sans le `v`. Un build local donne `0.0.0` : la vérification est désactivée (carte « développement »). `release.yml` génère `SHA256SUMS` pour tous les fichiers publiés ; le nom de l'installateur est un contrat entre `shadow-assistant.iss` (`OutputBaseFilename`), `AssetName()` et ce fichier.
+
+**Linux** : pas d'installation automatique (le `.deb` demande root ; les autres distributions ont leur gestionnaire de paquets). La page affiche la nouvelle version et le bouton « Télécharger » ouvre la page de la release (`canUpdate` est faux).
+
+**Tester** : `powershell -File tools\test\updater\run.ps1` compile le vrai `updater.cpp` avec un serveur local (macros `SHADOW_UPDATE_BASE` et `SHADOW_UPDATE_ALLOW_HTTP`, **jamais définies dans les builds livrés**) et un faux `Setup.exe`, puis joue 27 vérifications (tags piégés, fichier altéré, empreinte absente, 404, bonne version). Aperçu de la page : `fetch` remplaçable depuis la console, `window.__preview.updater.onUpdateInit({version:'0.1.0', canUpdate:true})` puis le bouton « Rechercher ».
 
 ## Compiler et publier
 

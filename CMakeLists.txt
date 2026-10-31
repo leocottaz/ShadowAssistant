@@ -5,6 +5,13 @@ set(SHADOW_VERSION "dev" CACHE STRING "Version affichée dans le nom du paquet (
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# Numéro compilé dans l'exécutable (« v0.1.0 » → « 0.1.0 »). Un build local (« dev ») donne 0.0.0 :
+# la vérification des mises à jour est alors désactivée (features/updater.h).
+string(REGEX REPLACE "^v" "" SHADOW_VERSION_NUM "${SHADOW_VERSION}")
+if (NOT SHADOW_VERSION_NUM MATCHES "^[0-9]+\\.[0-9]+\\.[0-9]+$")
+    set(SHADOW_VERSION_NUM "0.0.0")
+endif ()
+
 # Linux : cible séparée (GTK3 + WebKitGTK), voir cmake/linux.cmake.
 if (NOT WIN32)
     include(cmake/linux.cmake)
@@ -36,6 +43,8 @@ add_executable(ShadowAssistant WIN32
         src/features/reminders.cpp      # échéances des rappels et du minuteur
         src/features/media.cpp          # lecteur : musique en cours via Windows
         src/features/pc.cpp             # recherche de fichiers, routines, volume
+        src/features/updater.cpp        # mise à jour : télécharge, vérifie et lance Setup.exe
+        src/features/updater_common.cpp # version, tag, SHA256SUMS (partagé avec Linux)
 
         # common/ : utilitaires partagés
         src/common/util.cpp
@@ -43,8 +52,9 @@ add_executable(ShadowAssistant WIN32
 set_source_files_properties(src/app/shadow-assistant.rc PROPERTIES OBJECT_DEPENDS ${CMAKE_SOURCE_DIR}/src/app/shadow-assistant.ico)
 
 target_include_directories(ShadowAssistant PRIVATE ${CMAKE_SOURCE_DIR}/src ${CMAKE_SOURCE_DIR}/third_party/webview2/include)
-target_compile_definitions(ShadowAssistant PRIVATE UNICODE _UNICODE WIN32_LEAN_AND_MEAN NOMINMAX _WIN32_WINNT=0x0A00)
-target_link_libraries(ShadowAssistant PRIVATE dwmapi winhttp crypt32 shell32 ole32 oleaut32 user32 gdi32 advapi32 shcore runtimeobject comdlg32 uuid)
+target_compile_definitions(ShadowAssistant PRIVATE UNICODE _UNICODE WIN32_LEAN_AND_MEAN NOMINMAX _WIN32_WINNT=0x0A00
+        SHADOW_VERSION_STR="${SHADOW_VERSION_NUM}")
+target_link_libraries(ShadowAssistant PRIVATE bcrypt dwmapi winhttp crypt32 shell32 ole32 oleaut32 user32 gdi32 advapi32 shcore runtimeobject comdlg32 uuid)
 
 if (MINGW)
     target_compile_options(ShadowAssistant PRIVATE -municode -Wno-unknown-pragmas)

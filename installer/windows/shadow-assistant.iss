@@ -68,6 +68,9 @@ Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: 
 
 [Run]
 Filename: "{app}\{#AppExe}"; Description: "Lancer {#AppName}"; Flags: nowait postinstall skipifsilent
+; Mise à jour automatique (features/updater.cpp) : l'application lance ce Setup avec /VERYSILENT /RELAUNCH=1,
+; et c'est lui qui la redémarre une fois les fichiers remplacés.
+Filename: "{app}\{#AppExe}"; Flags: nowait runasoriginaluser; Check: RelaunchRequested
 
 [Code]
 // Arrête le dock installé dans {app} (chemin exact), sans toucher aux autres ShadowAssistant.exe.
@@ -83,6 +86,11 @@ begin
     ' | Where-Object { $_.Path -eq ''' + Exe + ''' } | Stop-Process -Force"',
     '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
   Sleep(300); // laisse Windows libérer les fichiers
+end;
+
+function RelaunchRequested: Boolean;
+begin
+  Result := ExpandConstant('{param:RELAUNCH|0}') = '1';
 end;
 
 function PrepareToInstall(var NeedsRestart: Boolean): String;

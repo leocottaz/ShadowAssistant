@@ -21,8 +21,11 @@ add_executable(ShadowAssistant
         src/linux/media_linux.cpp           # lecteur : MPRIS2
         src/linux/pc_linux.cpp              # fichiers, routines, volume
         src/features/reminders.cpp          # échéances des rappels et du minuteur (partagé avec Windows)
+        src/features/updater_common.cpp     # version et vérification des mises à jour (partagé avec Windows)
+        src/linux/updater_linux.cpp         # pas d'installation automatique sous Linux
         src/common/util_common.cpp)
 target_include_directories(ShadowAssistant PRIVATE ${CMAKE_SOURCE_DIR}/src)
+target_compile_definitions(ShadowAssistant PRIVATE SHADOW_VERSION_STR="${SHADOW_VERSION_NUM}")
 target_link_libraries(ShadowAssistant PRIVATE PkgConfig::GTK3 PkgConfig::WEBKIT PkgConfig::CURL PkgConfig::X11 Threads::Threads)
 
 # L'interface se trouve à côté de l'exécutable.

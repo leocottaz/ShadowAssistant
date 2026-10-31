@@ -13,6 +13,7 @@
   <link rel="stylesheet" href="css/notes.css">
   <link rel="stylesheet" href="css/timer.css">
   <link rel="stylesheet" href="css/settings.css">
+  <link rel="stylesheet" href="css/updater.css">
 </head>
 <body class="theme-dark st-hidden">
   <div class="ambient" aria-hidden="true"><span class="blob b1"></span><span class="blob b2"></span><span class="blob b3"></span></div>
@@ -423,11 +424,29 @@
               <label class="toggle-row"><span>Économie de mémoire <span class="hint">~200 Mo de moins, animations moins fluides</span></span><span class="toggle"><input type="checkbox" data-setting="lowMemory"><span></span></span></label>
               <div class="toggle-row">Quitter Shadow Assistant<button type="button" class="ghost danger" id="quitBtn"><i data-icon="power"></i>Quitter</button></div>
             </div>
+            <div class="card glass">
+              <h3>Mises à jour</h3>
+              <div class="toggle-row">Version installée<b id="updateVersion">…</b></div>
+              <label class="toggle-row">Vérifier automatiquement les mises à jour<span class="toggle"><input type="checkbox" data-setting="updateCheck"><span></span></span></label>
+              <div class="toggle-row">Chercher une nouvelle version<span class="update-row-actions"><button type="button" class="ghost" id="updateOpenReleases">Voir les versions</button><button type="button" class="ghost" id="updateCheckNow">Rechercher</button></span></div>
+              <span class="hint" id="updateStatus"></span>
+            </div>
           </div>
         </div>
       </div>
     </section>
   </main>
+
+  <!-- Mise à jour disponible (js/features/updater.js) : visible quand le panneau est ouvert -->
+  <div class="update-banner" id="updateBanner" role="status" hidden>
+    <div class="update-text"><b id="updateTitle"></b><small id="updateSub"></small></div>
+    <div class="update-actions">
+      <button type="button" class="ghost" id="updateSkip" title="Ne plus proposer cette version">Ignorer</button>
+      <button type="button" class="ghost" id="updateLater">Plus tard</button>
+      <button type="button" class="primary" id="updateInstall">Mettre à jour</button>
+    </div>
+    <div class="update-progress" id="updateBar" hidden><span id="updateFill"></span></div>
+  </div>
 
   <div class="toast" id="toast"></div>
   <script type="module" src="js/main.js"></script>

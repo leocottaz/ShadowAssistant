@@ -46,6 +46,14 @@ cmake --build --preset linux-release
 
 Sous Wayland pur, le dock force le backend X11 (XWayland) ; sans lui, ni le bord haut de l'écran ni le raccourci global ne fonctionneraient. Sous GNOME, l'icône de la zone de notification demande l'extension « AppIndicator ».
 
+### Mises à jour
+
+L'application vérifie sur GitHub, au démarrage puis toutes les 6 h, s'il existe une version plus récente (Réglages → Système → Mises à jour pour la désactiver ou lancer une recherche). Si oui, une bannière propose **Mettre à jour**, **Plus tard** ou **Ignorer** : rien n'est téléchargé sans ton clic.
+
+- **Windows (installée avec `Setup.exe`)** : un clic télécharge l'installateur de la release, vérifie son empreinte SHA-256 (fichier `SHA256SUMS` de la release), l'installe en silencieux et relance le dock. Un fichier dont l'empreinte ne correspond pas n'est jamais lancé.
+- **Windows portable (ZIP) ou compilée par toi** : la bannière renvoie vers la page de la release. Un build local (`0.0.0`) ne vérifie rien.
+- **Linux** : la bannière renvoie vers la page de la release ; installe le nouveau `.deb` (`sudo apt install ./…`) ou ton gestionnaire de paquets.
+
 ### Publier une version
 
 ```bash
