@@ -1,6 +1,6 @@
 // Lecteur : affiche la musique suivie par le natif (src/features/media.cpp, {"t":"media"}),
 // la pilote (lecture/pause, piste suivante/précédente, position) et affiche les
-// paroles, récupérées à la demande sur LRCLIB et synchronisées quand c'est possible.
+// paroles, récupérées à la demande sur LRCLIB ou lrcmux et synchronisées quand c'est possible.
 import { $, $$, esc, clamp, store } from '../core/util.js';
 import { send } from '../core/bridge.js';
 import { settings, setSetting, onSettingChange } from '../core/settings.js';
@@ -218,11 +218,12 @@ function ensureLoop() {
   loopId = requestAnimationFrame(step);
 }
 
-// ------------------------------------------------------------------ paroles (LRCLIB)
+// ------------------------------------------------------------------ paroles (LRCLIB, puis lrcmux)
 
 // Retire ce qui gêne la recherche : « (feat. …) », « - Remastered 2011 », « (Radio Edit) », « [Live] »…
 const VARIANT = 'remaster|version|edit|live|mix|mono|stereo|deluxe|bonus|explicit|clean|acousti|extended|instrumental'
-  + '|from|sped|slowed|reverb|soundtrack|bande originale|extrait';
+  + '|from|sped|slowed|reverb|soundtrack|bande originale|extrait'
+  + '|official|officiel|clip|vid[ée]o|audio|lyric|paroles|visuali[sz]er';
 function cleanTitle(t) {
   const out = t.replace(/\s*[([](feat|ft|featuring|with|avec)\b\.?[^)\]]*[)\]]/gi, '')
     .replace(/\s+(feat|ft|featuring)\.?\s.*$/i, '')
@@ -253,36 +254,54 @@ function parseLrc(text) {
 }
 
 const sleep = (ms) => new Promise((ok) => setTimeout(ok, ms));
-const LRCLIB_CLIENT = 'ShadowAssistant (https://github.com/leocottaz/ShadowAssistant)';
-const LRCLIB_GAP = 350;                       // ms entre deux requêtes (conseil de la doc : 200 à 500)
-const LRCLIB_PATIENCE = [0, 5, 15, 40, 90];   // s avant chaque passe : les 503 durent jusqu'à une minute ou deux
-let lrclibNext = 0;                           // heure de la prochaine requête permise
+const LYRICS_GAP = 350;                       // ms entre deux requêtes (conseil de la doc LRCLIB : 200 à 500)
+const LYRICS_PATIENCE = [0, 5, 15, 40, 90];   // s avant chaque passe : les 503 durent jusqu'à une minute ou deux
 
-// Une requête à la fois, en respectant Retry-After (429 et 503). null = introuvable (404).
+// Deux sources, même API. `next` = heure de la prochaine requête permise.
+// lrcmux agrège d'autres catalogues : aucun en-tête personnalisé, son CORS les refuse.
+const LRCLIB = {
+  base: 'https://lrclib.net/api/', timeout: 10000, next: 0,
+  headers: { 'Lrclib-Client': 'ShadowAssistant (https://github.com/leocottaz/ShadowAssistant)' },
+};
+const LRCMUX = { base: 'https://api.lrcmux.dev/compat/lrclib/api/', timeout: 15000, next: 0, headers: {} };
+
+// Une requête à la fois par source, en respectant Retry-After (429 et 503). null = introuvable (404).
 // Pas de relance ici : fetchLyrics refait une passe plus tard sur tout ce qui a échoué.
-async function lrclib(path, params) {
-  const at = Math.max(Date.now(), lrclibNext);
-  lrclibNext = at + LRCLIB_GAP;
+async function askLyrics(source, path, params) {
+  const at = Math.max(Date.now(), source.next);
+  source.next = at + LYRICS_GAP;
   await sleep(at - Date.now());
-  const url = `https://lrclib.net/api/${path}?${new URLSearchParams(params)}`;
-  const r = await fetch(url, { headers: { 'Lrclib-Client': LRCLIB_CLIENT } });
+  const url = `${source.base}${path}?${new URLSearchParams(params)}`;
+  const r = await fetch(url, { headers: source.headers, signal: AbortSignal.timeout(source.timeout) });
   if (r.status === 404) return null;
   if (r.status === 429 || r.status === 503) {
     const wait = (parseFloat(r.headers.get('Retry-After')) || 1) * 1000 * (1 + Math.random() * 0.3);
-    lrclibNext = Math.max(lrclibNext, Date.now() + wait);
+    source.next = Math.max(source.next, Date.now() + wait);
   }
-  if (!r.ok) throw new Error(`LRCLIB ${r.status}`);
+  if (!r.ok) throw new Error(`Paroles ${r.status}`);
   return r.json();
+}
+
+// Sans album, le morceau vient en général d'un site vidéo : l'artiste reçu est le nom de la chaîne
+// (« Adele - Topic », « AdeleVEVO ») et le titre celui de la vidéo (« Adele - Hello (Clip officiel) »).
+function guessTrack(track) {
+  const artist = track.artist.replace(/\s+-\s+topic$/i, '').replace(/\s*vevo$/i, '')
+    .replace(/\s+(official|officiel(le)?)$/i, '').trim() || track.artist;
+  if (track.album) return { title: cleanTitle(track.title), artist, web: false };
+  const title = cleanTitle(track.title.replace(/\s*[|｜].*$/, ''));
+  const split = title.match(/^(.+?)\s+[-–—]\s+(.+)$/);
+  return split ? { title: cleanTitle(split[2]), artist: split[1], web: true } : { title, artist, web: true };
 }
 
 // Plusieurs essais du plus précis au plus large ; on s'arrête dès qu'une version a la
 // bonne durée (paroles synchronisées). Sinon, on garde la meilleure version trouvée
 // mais sans synchronisation, plutôt que d'annoncer « introuvables ». Ce qui échoue
 // (serveur surchargé) est rejoué aux passes suivantes tant que le morceau n'a pas changé.
+// lrcmux passe après LRCLIB, ou dès que LRCLIB échoue pour ne pas subir toute sa patience.
 async function fetchLyrics(track) {
   const secs = Math.round(track.dur / 1000);
-  const title = cleanTitle(track.title);
-  const artist = mainArtist(track.artist);
+  const { title, artist: shown, web } = guessTrack(track);
+  const artist = mainArtist(shown);
   const hasText = (x) => x && (x.instrumental || x.syncedLyrics || x.plainLyrics);
   const diff = (x) => (secs > 0 ? Math.abs((x.duration || 0) - secs) : 0);
   const nt = norm(title), na = norm(artist);
@@ -295,29 +314,37 @@ async function fetchLyrics(track) {
 
   let pending = [];
   if (secs > 0 && secs <= 3600 && artist) { // bornes de /api/get
-    const exact = { track_name: track.title, artist_name: track.artist, duration: secs };
-    if (track.album) exact.album_name = track.album;
-    pending.push(['get', exact]);
-    if (title !== track.title || artist !== track.artist) pending.push(['get', { track_name: title, artist_name: artist, duration: secs }]);
+    if (!web) pending.push([LRCLIB, 'get', { track_name: track.title, artist_name: track.artist, album_name: track.album, duration: secs }]);
+    if (web || title !== track.title || artist !== track.artist) pending.push([LRCLIB, 'get', { track_name: title, artist_name: artist, duration: secs }]);
   }
-  if (track.artist) pending.push(['search', { track_name: title, artist_name: track.artist }]);
-  if (artist !== track.artist) pending.push(['search', { track_name: title, artist_name: artist }]);
-  if (plain(title) !== title || plain(artist) !== artist) pending.push(['search', { track_name: plain(title), artist_name: plain(artist) }]);
-  pending.push(['search', { q: `${title} ${artist}`.trim() }]);
-  pending.push(['search', { track_name: title }]);
+  if (shown) pending.push([LRCLIB, 'search', { track_name: title, artist_name: shown }]);
+  if (artist !== shown) pending.push([LRCLIB, 'search', { track_name: title, artist_name: artist }]);
+  if (plain(title) !== title || plain(artist) !== artist) pending.push([LRCLIB, 'search', { track_name: plain(title), artist_name: plain(artist) }]);
+  pending.push([LRCLIB, 'search', { q: `${title} ${artist}`.trim() }]);
+  pending.push([LRCLIB, 'search', { track_name: title }]);
+  if (artist) pending.push([LRCMUX, 'get', { track_name: title, artist_name: artist, ...(secs > 0 && { duration: secs }) }]);
 
   let fallback = null;
-  for (let pass = 0; pass < LRCLIB_PATIENCE.length && pending.length; pass++) {
-    await sleep(LRCLIB_PATIENCE[pass] * 1000);
+  for (let pass = 0; pass < LYRICS_PATIENCE.length && pending.length; pass++) {
+    await sleep(LYRICS_PATIENCE[pass] * 1000);
     const failed = [];
-    for (const attempt of pending) {
+    const queue = [...pending];
+    while (queue.length) {
       if (track.stale()) throw new Error('piste changée'); // pas de mise en cache
-      const [path, params] = attempt;
+      const attempt = queue.shift();
+      const [source, path, params] = attempt;
       let res;
-      try { res = await lrclib(path, params); } catch { failed.push(attempt); continue; }
+      try {
+        res = await askLyrics(source, path, params);
+      } catch {
+        failed.push(attempt);
+        const mux = queue.findIndex(([s]) => s === LRCMUX);
+        if (mux > 0) queue.unshift(...queue.splice(mux, 1));
+        continue;
+      }
       const list = (Array.isArray(res) ? res : res ? [res] : []).filter(hasText);
-      // Les recherches larges ramènent d'autres morceaux : on vérifie titre et artiste.
-      const ok = (path === 'get' || params.artist_name ? list : list.filter(sameTrack))
+      // Les recherches larges et l'agrégateur ramènent d'autres morceaux : on vérifie titre et artiste.
+      const ok = (source === LRCLIB && (path === 'get' || params.artist_name) ? list : list.filter(sameTrack))
         .sort((a, b) => diff(a) - diff(b));
       const best = ok.find((x) => x.syncedLyrics || x.instrumental);
       if (best && diff(best) <= 8) return best;
@@ -327,7 +354,7 @@ async function fetchLyrics(track) {
     if (fallback && pass >= 1) break; // on a de quoi afficher : inutile de faire attendre plus
   }
   if (fallback) return { ...fallback, syncedLyrics: null, plainLyrics: fallback.plainLyrics || stripLrc(fallback.syncedLyrics) };
-  if (pending.length) throw new Error('LRCLIB injoignable'); // erreur : pas de « introuvable » mis en cache
+  if (pending.length) throw new Error('Sources de paroles injoignables'); // erreur : pas de « introuvable » mis en cache
   return null;
 }
 
@@ -376,11 +403,11 @@ function renderLyrics() {
   if (lyrics.state === 'loading') {
     box.innerHTML = '<div class="lyrics-loading">' + '<span></span>'.repeat(6) + '</div>';
   } else if (lyrics.state === 'none') {
-    box.innerHTML = msg('Paroles introuvables', 'LRCLIB ne connaît pas encore ce titre.');
+    box.innerHTML = msg('Paroles introuvables', 'Aucune source ne connaît encore ce titre.');
   } else if (lyrics.state === 'instrumental') {
     box.innerHTML = msg('♪ Instrumental');
   } else if (lyrics.state === 'error') {
-    box.innerHTML = msg('Paroles indisponibles', 'Impossible de joindre LRCLIB pour le moment.');
+    box.innerHTML = msg('Paroles indisponibles', 'Impossible de joindre les sources de paroles pour le moment.');
   } else if (lyrics.state === 'ready') {
     box.classList.toggle('synced', lyrics.synced);
     box.innerHTML = '<div class="lyrics-pad"></div>'
@@ -468,7 +495,7 @@ function setupMusic() {
   for (const id of ['#mNext', '#mcardNext']) $(id).addEventListener('click', () => send('media', 'next'));
   $('#lyricsBtn').addEventListener('click', () => { setSetting('lyricsOpen', !settings.lyricsOpen); render(); syncLyrics(currentPos(), true); });
   $('#openDeezer').addEventListener('click', () => send('openurl', 'https://www.deezer.com/'));
-  $('.lyrics-credit a').addEventListener('click', (e) => send('openurl', e.target.dataset.url));
+  document.querySelectorAll('.lyrics-credit a').forEach((a) => a.addEventListener('click', () => send('openurl', a.dataset.url)));
   $('#lyricsScroll').addEventListener('click', (e) => {
     const p = e.target.closest('p[data-i]');
     if (p && lyrics.synced) seekTo(lyrics.lines[+p.dataset.i].t);
@@ -505,4 +532,4 @@ function previewLyrics(lines, synced = true) {
   syncLyrics(currentPos(), true);
 }
 
-export { onMedia, setupMusic, connectMusic, previewLyrics, fetchLyrics, cleanTitle, nowPlaying, ensureLoop as resumeMusicLoop };
+export { onMedia, setupMusic, connectMusic, previewLyrics, fetchLyrics, guessTrack, nowPlaying, ensureLoop as resumeMusicLoop };

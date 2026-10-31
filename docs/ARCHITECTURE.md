@@ -82,7 +82,7 @@ Modules ES (`<script type="module" src="js/main.js">`), sans dépendance externe
 | `js/features/notes.js` | Notes. |
 | `js/features/todo.js` | To-do : tâches à cocher, étoile (en tête de liste), modification par double-clic, section « Faites ». |
 | `js/features/timer.js` | Minuteur : temps limité (compte à rebours) ou illimité (chronomètre), calculé par horodatages ; texte de la barre (`timerLabel`). |
-| `js/features/music.js` | Mini-lecteur de la barre et onglet Musique : position interpolée, barre de progression, couleur de la pochette, paroles LRCLIB (synchronisées au format LRC, ou texte simple), ligne en cours pour le mini-dock (`updateMini`). |
+| `js/features/music.js` | Mini-lecteur de la barre et onglet Musique : position interpolée, barre de progression, couleur de la pochette, paroles LRCLIB avec lrcmux en secours (synchronisées au format LRC, ou texte simple), ligne en cours pour le mini-dock (`updateMini`). |
 | `js/features/files.js` | Recherche de fichiers pour Claude : résultats rangés par recherche (cartes cliquables), ouverture par numéro dans la dernière recherche, contexte du mode Pro. |
 | `js/features/updater.js` | Mises à jour : interroge l'API GitHub (`releases/latest`) au démarrage puis toutes les 6 h, compare les versions, affiche la bannière (`#updateBanner`, visible panneau ouvert) et la carte des Réglages → Système ; envoie `update` au natif au clic. |
 | `js/features/routines.js` | Routines : données, éditeur des Réglages, lancement (`routine` vers le natif), recherche par nom pour Claude. |
