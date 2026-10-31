@@ -53,7 +53,7 @@ std::string Fold(const std::string& s) {
     std::string out;
     for (const gchar* p = nfd; *p; p = g_utf8_next_char(p)) {
         gunichar c = g_utf8_get_char(p);
-        if (c < 0x300 || c > 0x36F) out += std::string(p, g_utf8_next_char(p));
+        if (c < 0x300 || c > 0x36F) out.append(p, (const gchar*)g_utf8_next_char(p) - p);
     }
     g_free(nfd);
     gchar* low = g_utf8_strdown(out.c_str(), -1);
