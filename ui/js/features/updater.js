@@ -165,7 +165,10 @@ async function announceChanges() {
   if (isDev()) return;
   const seen = store.get('lastSeenVersion', '');
   if (seen === U.version) return;
-  if (!seen || !isNewer(U.version, seen)) { store.set('lastSeenVersion', U.version); return; }
+  // Pas de version enregistrée : installation neuve (welcomed absent, rien à montrer) ou mise à jour
+  // depuis une version qui ne l'enregistrait pas encore (welcomed présent) : on montre les nouveautés.
+  const upgraded = seen ? isNewer(U.version, seen) : store.get('welcomed', false);
+  if (!upgraded) { store.set('lastSeenVersion', U.version); return; }
   const items = await fetchNotes(U.version);
   if (!items) return; // hors ligne : on réessaie au prochain lancement
   store.set('lastSeenVersion', U.version);
