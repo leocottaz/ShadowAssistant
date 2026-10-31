@@ -13,3 +13,5 @@ CMakeUserPresets.json
 .idea/
 .vs/
 .vscode/
+
+CLAUDE.md
