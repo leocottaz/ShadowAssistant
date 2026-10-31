@@ -5,7 +5,8 @@ import { bridge, send } from '../core/bridge.js';
 import { settings, setSetting } from '../core/settings.js';
 
 const API = 'https://api.github.com/repos/leocottaz/ShadowAssistant/releases/latest';
-const RELEASES = 'https://github.com/leocottaz/ShadowAssistant/releases';
+const TAG_API = 'https://api.github.com/repos/leocottaz/ShadowAssistant/releases/tags/';
+const RELEASES ='https://github.com/leocottaz/ShadowAssistant/releases';
 const CHECK_EVERY = 6 * 3600 * 1000;
 
 // version : numéro de l'exécutable ; canUpdate : copie installée par Setup.exe (sinon on renvoie vers GitHub).
@@ -133,6 +134,42 @@ function onUpdateInit(m) {
   U.canUpdate = !!m.canUpdate;
   render();
   schedule();
+  announceChanges();
+}
+
+// --------------------------------------------------------------- nouveautés
+
+// Les nouveautés sont le texte de la Release GitHub de cette version : une ligne par « - … » (ou « * … »).
+// Renvoie null si GitHub est injoignable (on réessaiera au prochain lancement), [] s'il n'y a rien à montrer.
+async function fetchNotes(version) {
+  try {
+    const res = await fetch(`${TAG_API}v${version}`, { headers: { Accept: 'application/vnd.github+json' }, cache: 'no-store' });
+    if (res.status === 404) return [];
+    if (!res.ok) return null;
+    const r = await res.json();
+    return String(r.body || '').split('\n').map((l) => l.trim()).filter((l) => /^[-*]\s+\S/.test(l)).map((l) => l.replace(/^[-*]\s+/, ''));
+  } catch (e) {
+    return null;
+  }
+}
+
+function showChangelog(version, items) {
+  $('#whatsNewTitle').textContent = `Nouveautés de la version ${version}`;
+  $('#whatsNewList').replaceChildren(...items.map((text) => Object.assign(document.createElement('li'), { textContent: text })));
+  $('#whatsNew').hidden = false;
+  send('open'); // le dock est rangé au démarrage : on le déroule pour montrer la carte
+}
+
+// Une seule fois par version : rien au premier lancement ni en version de développement.
+async function announceChanges() {
+  if (isDev()) return;
+  const seen = store.get('lastSeenVersion', '');
+  if (seen === U.version) return;
+  if (!seen || !isNewer(U.version, seen)) { store.set('lastSeenVersion', U.version); return; }
+  const items = await fetchNotes(U.version);
+  if (!items) return; // hors ligne : on réessaie au prochain lancement
+  store.set('lastSeenVersion', U.version);
+  if (items.length) showChangelog(U.version, items);
 }
 
 function setupUpdater() {
@@ -143,9 +180,10 @@ function setupUpdater() {
     render();
     toast('Version ignorée');
   });
+  $('#whatsNewClose').addEventListener('click', () => { $('#whatsNew').hidden = true; });
   $('#updateCheckNow').addEventListener('click', () => check({ manual: true }));
   $('#updateOpenReleases').addEventListener('click', () => send('openurl', releaseUrl()));
   render();
 }
 
-export { setupUpdater, onUpdateInit, onUpdateMessage, parseVersion, isNewer };
+export { setupUpdater, onUpdateInit, showChangelog, onUpdateMessage, parseVersion, isNewer };

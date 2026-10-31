@@ -448,6 +448,13 @@
     <div class="update-progress" id="updateBar" hidden><span id="updateFill"></span></div>
   </div>
 
+  <!-- Nouveautés après une mise à jour (js/features/updater.js, texte de la Release GitHub) -->
+  <div class="whatsnew" id="whatsNew" role="dialog" aria-labelledby="whatsNewTitle" hidden>
+    <b id="whatsNewTitle"></b>
+    <ul id="whatsNewList"></ul>
+    <div class="whatsnew-actions"><button type="button" class="primary" id="whatsNewClose">Compris</button></div>
+  </div>
+
   <div class="toast" id="toast"></div>
   <script type="module" src="js/main.js"></script>
 </body>
