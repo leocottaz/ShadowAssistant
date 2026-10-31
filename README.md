@@ -87,7 +87,7 @@ cmake --build build-deb && (cd build-deb && cpack -G DEB)
   - **Abonnement Pro** (par défaut) : le dock lance le CLI officiel `claude -p` (Claude Code, inclus dans Pro), sans outils, dans `%LOCALAPPDATA%\ShadowAssistant\claude-chat`. Les messages comptent dans les limites de l'abonnement, sans facturation API. Installation : `irm https://claude.ai/install.ps1 | iex` dans PowerShell, puis « Se connecter » dans les réglages.
   - **Clé API** : facturée à l'usage, chiffrée avec DPAPI dans `%APPDATA%\ShadowAssistant\apikey.bin`.
   - **Gratuit** : Gemini ou Groq avec votre propre clé ; sert aussi de secours si Claude échoue.
-- Musique : quand Deezer joue, un mini-lecteur apparaît dans la barre et l'onglet **Musique** montre la pochette, la progression, les commandes et les **paroles** synchronisées (source : [LRCLIB](https://lrclib.net), récupérées à la demande). Réglages → Musique : Deezer seulement ou toutes les sources.
+- Musique : quand Deezer joue, un mini-lecteur apparaît dans la barre et l'onglet **Musique** montre la pochette, la progression, les commandes et les **paroles** synchronisées (sources : [LRCLIB](https://lrclib.net), puis [lrcmux](https://lrcmux.dev) en secours, récupérées à la demande). Réglages → Musique : Deezer seulement ou toutes les sources.
 - Claude peut créer des rappels, des notes et des tâches, chercher et ouvrir des fichiers, lancer des routines et le minuteur.
 
 ## Structure
