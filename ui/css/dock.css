@@ -24,15 +24,15 @@ html:not(.linux) body:not(.preview) .ambient {
     radial-gradient(circle at 0 100%, transparent calc(var(--fl) - .6px), #000 calc(var(--fl) + .4px)),
     radial-gradient(circle at 100% 100%, transparent calc(var(--fl) - .6px), #000 calc(var(--fl) + .4px));
   -webkit-mask-size:
-    calc(100% - 2 * var(--fl)) calc(100% - var(--r)),
-    calc(100% - 2 * var(--fl) - 2 * var(--r)) 100%,
+    calc(100% - 2 * var(--fl)) calc(100% - var(--r) + 4px), /* recouvrement de 4 px : à une échelle d'écran fractionnaire, les couches se décalent d'un pixel et laissent une ligne sombre */
+    calc(100% - 2 * var(--fl) - 2 * var(--r) + 8px) 100%,
     var(--r) var(--r),
     var(--r) var(--r),
     var(--fl) var(--fl),
     var(--fl) var(--fl);
   -webkit-mask-position:
     var(--fl) 0,
-    calc(var(--fl) + var(--r)) 0,
+    calc(var(--fl) + var(--r) - 4px) 0,
     var(--fl) 100%,
     calc(100% - var(--fl)) 100%,
     0 var(--inset),
