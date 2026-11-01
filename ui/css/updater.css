@@ -68,6 +68,8 @@
 .whatsnew b { font-weight: 650; font-size: 15px; }
 .whatsnew ul { margin: 10px 0 0; padding-left: 18px; }
 .whatsnew li { margin: 4px 0; color: rgba(255, 255, 255, .88); font-size: 13px; line-height: 1.4; }
+.whatsnew li.ver { margin: 12px 0 2px -18px; color: #fff; font-weight: 650; list-style: none; }
+.whatsnew li.ver:first-child { margin-top: 0; }
 .whatsnew-actions { display: flex; justify-content: flex-end; margin-top: 10px; }
 .whatsnew-actions .primary { height: 30px; background: #fff; box-shadow: none; color: #1a1a24; }
 

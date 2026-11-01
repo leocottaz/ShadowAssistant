@@ -5,7 +5,7 @@ import { bridge, send } from '../core/bridge.js';
 import { settings, setSetting } from '../core/settings.js';
 
 const API = 'https://api.github.com/repos/leocottaz/ShadowAssistant/releases/latest';
-const TAG_API = 'https://api.github.com/repos/leocottaz/ShadowAssistant/releases/tags/';
+const RELEASES_API = 'https://api.github.com/repos/leocottaz/ShadowAssistant/releases';
 const RELEASES ='https://github.com/leocottaz/ShadowAssistant/releases';
 const CHECK_EVERY = 6 * 3600 * 1000;
 
@@ -139,23 +139,34 @@ function onUpdateInit(m) {
 
 // --------------------------------------------------------------- nouveautés
 
-// Les nouveautés sont le texte de la Release GitHub de cette version : une ligne par « - … » (ou « * … »).
-// Renvoie null si GitHub est injoignable (on réessaiera au prochain lancement), [] s'il n'y a rien à montrer.
-async function fetchNotes(version) {
+// Les nouveautés sont le texte des Releases GitHub : une ligne par « - … » (ou « * … »).
+// Renvoie les versions de `seen` (exclue) à la version actuelle (incluse), de la plus récente à la plus
+// ancienne ; sans `seen`, seulement la version actuelle. null si GitHub est injoignable (on réessaiera
+// au prochain lancement), [] s'il n'y a rien à montrer.
+async function fetchNotes(seen) {
   try {
-    const res = await fetch(`${TAG_API}v${version}`, { headers: { Accept: 'application/vnd.github+json' }, cache: 'no-store' });
-    if (res.status === 404) return [];
+    const res = await fetch(`${RELEASES_API}?per_page=30`, { headers: { Accept: 'application/vnd.github+json' }, cache: 'no-store' });
     if (!res.ok) return null;
-    const r = await res.json();
-    return String(r.body || '').split('\n').map((l) => l.trim()).filter((l) => /^[-*]\s+\S/.test(l)).map((l) => l.replace(/^[-*]\s+/, ''));
+    const groups = [];
+    for (const r of await res.json()) {
+      const tag = String(r.tag_name);
+      if (r.draft || r.prerelease || !parseVersion(tag) || isNewer(tag, U.version)) continue;
+      if (seen ? !isNewer(tag, seen) : tag !== `v${U.version}`) continue;
+      const items = String(r.body || '').split('\n').map((l) => l.trim()).filter((l) => /^[-*]\s+\S/.test(l)).map((l) => l.replace(/^[-*]\s+/, ''));
+      if (items.length) groups.push({ version: tag.replace(/^v/, ''), tag, items });
+    }
+    return groups.sort((a, b) => (isNewer(a.tag, b.tag) ? -1 : 1));
   } catch (e) {
     return null;
   }
 }
 
-function showChangelog(version, items) {
-  $('#whatsNewTitle').textContent = `Nouveautés de la version ${version}`;
-  $('#whatsNewList').replaceChildren(...items.map((text) => Object.assign(document.createElement('li'), { textContent: text })));
+// groups : [{ version, items }] ; plusieurs versions → un intertitre par version.
+function showChangelog(groups) {
+  const many = groups.length > 1;
+  $('#whatsNewTitle').textContent = many ? `Nouveautés depuis ta version précédente` : `Nouveautés de la version ${groups[0].version}`;
+  const li = (text, cls) => Object.assign(document.createElement('li'), { textContent: text, className: cls || '' });
+  $('#whatsNewList').replaceChildren(...groups.flatMap((g) => [...(many ? [li(`Version ${g.version}`, 'ver')] : []), ...g.items.map((t) => li(t))]));
   $('#whatsNew').hidden = false;
   send('open'); // le dock est rangé au démarrage : on le déroule pour montrer la carte
 }
@@ -169,10 +180,10 @@ async function announceChanges() {
   // depuis une version qui ne l'enregistrait pas encore (welcomed présent) : on montre les nouveautés.
   const upgraded = seen ? isNewer(U.version, seen) : store.get('welcomed', false);
   if (!upgraded) { store.set('lastSeenVersion', U.version); return; }
-  const items = await fetchNotes(U.version);
-  if (!items) return; // hors ligne : on réessaie au prochain lancement
+  const groups = await fetchNotes(seen);
+  if (!groups) return; // hors ligne : on réessaie au prochain lancement
   store.set('lastSeenVersion', U.version);
-  if (items.length) showChangelog(U.version, items);
+  if (groups.length) showChangelog(groups);
 }
 
 function setupUpdater() {
