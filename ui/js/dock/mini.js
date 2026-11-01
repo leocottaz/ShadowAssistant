@@ -1,12 +1,13 @@
 // Mini-dock : quand le dock est rangé, le natif réduit la fenêtre à une pastille (état « mini »).
-// Elle montre les rappels qui ont sonné (cloche + nombre) et/ou la ligne de paroles en cours.
-// On envoie au natif la largeur voulue en DIP ; 0 = rien à montrer, le dock se range comme avant.
-// Les autres modules ne font que lui donner leur contenu (setMiniAlerts, setMiniLyric).
+// Elle montre les rappels qui ont sonné (cloche + nombre), le temps du minuteur et/ou la ligne de
+// paroles en cours. On envoie au natif la largeur voulue en DIP ; 0 = rien à montrer, le dock se
+// range comme avant. Les autres modules ne font que lui donner leur contenu (setMiniAlerts,
+// setMiniTimer, setMiniLyric).
 import { $ } from '../core/util.js';
 import { send } from '../core/bridge.js';
 
 const MAX_W = 560;
-const state = { alerts: 0, lyric: null }; // lyric : { text, gap } ou null
+const state = { alerts: 0, timer: null, lyric: null }; // timer : { text, paused } ; lyric : { text, gap } ou null
 let sent = -1;
 let ctx = null;
 
@@ -19,17 +20,20 @@ function textWidth(el, text, weight) {
 
 // Doit suivre les marges de .pill dans css/dock.css.
 function wantedWidth() {
-  const { alerts, lyric } = state;
-  if (!alerts && !lyric) return 0;
+  const { alerts, timer, lyric } = state;
+  if (!alerts && !timer && !lyric) return 0;
   const chip = alerts ? 8 + 15 + 4 + textWidth($('#pillCount'), String(alerts), 700) + 8 : 0;
-  if (!lyric) return Math.ceil(7 + chip + 7); // la toute petite pastille : juste la cloche
-  const w = 7 + (chip ? chip + 8 : 0) + 26 + 10 + textWidth($('#pillLine'), lyric.text, 600) + 16 + 8;
+  // Chiffres mesurés comme des 0 : la largeur ne doit pas bouger à chaque seconde.
+  const time = timer ? 4 + 15 + 5 + textWidth($('#pillTime'), timer.text.replace(/\d/g, '0'), 600) + 4 : 0;
+  if (!lyric) return Math.ceil(7 + chip + (chip && time ? 8 : 0) + time + 7); // la petite pastille : cloche et/ou minuteur
+  const w = 7 + (chip ? chip + 8 : 0) + (time ? time + 10 : 0) + 26 + 10 + textWidth($('#pillLine'), lyric.text, 600) + 16 + 8;
   return Math.min(MAX_W, Math.max(180, Math.ceil(w / 8) * 8)); // par pas de 8 : moins de redimensionnements
 }
 
 function update() {
   const pill = $('#pill');
   pill.classList.toggle('has-alert', state.alerts > 0);
+  pill.classList.toggle('has-timer', !!state.timer);
   pill.classList.toggle('has-lyric', !!state.lyric);
   const width = wantedWidth();
   if (width === sent) return;
@@ -53,6 +57,16 @@ function setMiniAlerts(count) {
   update();
 }
 
+// Temps du minuteur ({ text, paused }), ou null quand il n'y a rien à montrer.
+function setMiniTimer(timer) {
+  if (timer) {
+    $('#pillTime').textContent = timer.text;
+    $('#pillTimer').classList.toggle('paused', timer.paused);
+  }
+  state.timer = timer;
+  update();
+}
+
 // Ligne de paroles en cours ({ text, gap }), ou null quand il n'y en a pas à montrer.
 function setMiniLyric(lyric) {
   const box = $('#pillLine');
@@ -73,6 +87,6 @@ function setMiniLyric(lyric) {
 }
 
 // Onglet à ouvrir quand on clique sur la pastille.
-const miniTab = () => (state.alerts ? 'reminders' : 'music');
+const miniTab = () => (state.alerts ? 'reminders' : state.lyric ? 'music' : 'timer');
 
-export { setMiniAlerts, setMiniLyric, miniTab };
+export { setMiniAlerts, setMiniTimer, setMiniLyric, miniTab };

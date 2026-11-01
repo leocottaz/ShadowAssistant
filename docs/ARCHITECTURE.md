@@ -77,11 +77,11 @@ Modules ES (`<script type="module" src="js/main.js">`), sans dépendance externe
 | `js/core/settings.js` | Réglages persistés, apparence, envoi au natif. `onSettingChange(fn)` pour réagir sans dépendance circulaire. |
 | `js/core/format.js`, `js/core/util.js` | Dates, icônes, stockage (`store`, clés préfixées `shadow.`), toast… |
 | `js/dock/dock.js` | États visuels, onglets (`NAV_TABS` = boutons de la barre ; Claude n'en a pas : orbe, champ « Demander », Ctrl+Alt+Espace), horloge, barre, raccourcis clavier. |
-| `js/dock/mini.js` | Mini-dock (dock rangé) : cloche + nombre de rappels sonnés (`setMiniAlerts`, appelé par `tick`), ligne de paroles (`setMiniLyric`) ; calcule la largeur et l'envoie au natif (`mini`). |
+| `js/dock/mini.js` | Mini-dock (dock rangé) : cloche + nombre de rappels sonnés (`setMiniAlerts`, appelé par `tick`), temps du minuteur (`setMiniTimer`), ligne de paroles (`setMiniLyric`) ; calcule la largeur et l'envoie au natif (`mini`). |
 | `js/features/reminders.js` | Rappels : saisie en français, liste, alertes. |
 | `js/features/notes.js` | Notes. |
 | `js/features/todo.js` | To-do : tâches à cocher, étoile (en tête de liste), modification par double-clic, section « Faites ». |
-| `js/features/timer.js` | Minuteur : temps limité (compte à rebours) ou illimité (chronomètre), calculé par horodatages ; texte de la barre (`timerLabel`). |
+| `js/features/timer.js` | Minuteur : temps limité (compte à rebours) ou illimité (chronomètre), calculé par horodatages ; texte de la barre (`timerLabel`), temps dans le mini-dock si l'option `timerPill` est active (`updatePill`, calé sur le changement de seconde). |
 | `js/features/music.js` | Mini-lecteur de la barre et onglet Musique : position interpolée, barre de progression, couleur de la pochette, paroles LRCLIB avec lrcmux en secours (synchronisées au format LRC, ou texte simple), ligne en cours pour le mini-dock (`updateMini`). |
 | `js/features/files.js` | Recherche de fichiers pour Claude : résultats rangés par recherche (cartes cliquables), ouverture par numéro dans la dernière recherche, contexte du mode Pro. |
 | `js/features/updater.js` | Mises à jour : interroge l'API GitHub (`releases/latest`) au démarrage puis toutes les 6 h, compare les versions, affiche la bannière (`#updateBanner`, visible panneau ouvert) et la carte des Réglages → Système ; envoie `update` au natif au clic. |
@@ -109,7 +109,7 @@ Modules ES (`<script type="module" src="js/main.js">`), sans dépendance externe
 | `hold` | ms | Empêche le repli automatique pendant ms. |
 | `reveal` | ms | Fait descendre la barre pendant ms (sauf devant une appli plein écran). |
 | `revealmusic` | ms, largeur (DIP) | Nouveau morceau : fait descendre seulement la carte musique (état `music`, 280 à 380 × 76 selon le titre) pendant ms. |
-| `mini` | largeur (DIP) | Mini-dock (rappels sonnés, paroles) : quand le dock est rangé, la fenêtre devient une pastille de cette largeur. `0` = rien à montrer. |
+| `mini` | largeur (DIP) | Mini-dock (rappels sonnés, minuteur, paroles) : quand le dock est rangé, la fenêtre devient une pastille de cette largeur. `0` = rien à montrer. |
 | `media` | `toggle`, `next`, `prev`, `seek\n<ms>`, `sources\n<deezer\|all>`, `refresh` | Pilote le lecteur / choisit la source / redemande l'état complet. |
 | `lowmem` | `0`/`1` | Économie de mémoire (`--in-process-gpu`) ; si elle change, la vue est recréée. |
 | `reminders` | lignes `id\tdueMs\ttexte` | Rappels à venir. |

@@ -1,6 +1,9 @@
 /* Onglet Minuteur. */
 
+.tm-head { flex: none; align-items: center; gap: 12px; }
 .tm-modes { width: 230px; flex: none; }
+.tm-pill-opt { display: flex; flex: none; align-items: center; justify-content: center; gap: 10px; color: var(--fg2); font-size: 12.5px; cursor: pointer; }
+.tm-pill-opt:hover { color: var(--fg); }
 
 .tm-body {
   flex: 1;

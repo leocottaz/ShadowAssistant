@@ -22,9 +22,10 @@
   <div class="peek" aria-hidden="true"><span></span></div>
   <div class="strip" aria-hidden="true"><span id="stripFill"></span></div>
 
-  <!-- Mini-dock (dock rangé) : rappels qui ont sonné et/ou ligne de paroles en cours (js/dock/mini.js) -->
+  <!-- Mini-dock (dock rangé) : rappels qui ont sonné, minuteur et/ou ligne de paroles en cours (js/dock/mini.js) -->
   <button type="button" class="pill" id="pill">
     <span class="pill-alert"><i data-icon="bell"></i><b id="pillCount">0</b></span>
+    <span class="pill-timer" id="pillTimer"><i data-icon="timer"></i><b id="pillTime"></b></span>
     <span class="pill-art"><img id="pillArt" alt="" hidden></span>
     <span class="pill-line" id="pillLine"></span>
   </button>
@@ -203,10 +204,12 @@
     <section class="view" data-view="timer" id="timerView">
       <div class="view-head">
         <div><h2>Minuteur</h2><p id="timerSummary"></p></div>
-        <div class="seg tm-modes" id="timerModes" style="--n:2">
-          <span class="seg-thumb"></span>
-          <button type="button" data-mode="down">Temps limité</button>
-          <button type="button" data-mode="up">Illimité</button>
+        <div class="head-actions tm-head">
+          <div class="seg tm-modes" id="timerModes" style="--n:2">
+            <span class="seg-thumb"></span>
+            <button type="button" data-mode="down">Temps limité</button>
+            <button type="button" data-mode="up">Illimité</button>
+          </div>
         </div>
       </div>
       <div class="tm-body">
@@ -227,6 +230,7 @@
           </form>
         </div>
       </div>
+      <label class="tm-pill-opt">Afficher le temps en haut de l’écran quand le dock est rangé<span class="toggle"><input type="checkbox" data-setting="timerPill"><span></span></span></label>
     </section>
 
     <!-- Réglages -->

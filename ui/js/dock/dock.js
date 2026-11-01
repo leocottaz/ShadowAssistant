@@ -134,7 +134,7 @@ function setupBar() {
   $('#orb').addEventListener('click', () => openTab(alertTab() || 'claude'));
   $('#npOpen').addEventListener('click', () => openTab('music'));
   $('#mcardOpen').addEventListener('click', () => openTab('music'));
-  $('#pill').addEventListener('click', () => openTab(alertTab() || miniTab()));
+  $('#pill').addEventListener('click', (e) => openTab(e.target.closest('#pillTimer') ? 'timer' : alertTab() || miniTab()));
 }
 
 function setupGlobal() {

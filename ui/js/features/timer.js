@@ -5,8 +5,10 @@ import { $, $$, clamp, store, toast } from '../core/util.js';
 import { bridge, send } from '../core/bridge.js';
 import { fmtTime } from '../core/format.js';
 import { S } from '../core/state.js';
+import { settings, onSettingChange } from '../core/settings.js';
 import { showAlert, dismissAlert } from './reminders.js';
 import { tick } from '../dock/dock.js';
+import { setMiniTimer } from '../dock/mini.js';
 
 const PRESETS = [1, 3, 5, 10, 15, 25, 30, 45, 60]; // minutes
 const MAX = 24 * 3600e3;
@@ -64,6 +66,7 @@ function save() {
   store.set('timer', T);
   // Le natif sonne à la fin même si la page dort ; 0 = rien à surveiller.
   send('timer', T.mode === 'down' && running() ? String(T.startedAt + T.duration - T.elapsed) : '0');
+  updatePill();
   tick();
 }
 
@@ -177,7 +180,7 @@ function renderTimer() {
     sub = down ? `Fin à ${fmtTime(new Date(T.startedAt + T.duration - T.elapsed))}` : 'En cours';
     summary = down ? `Compte à rebours de ${fmtDuration(T.duration)}` : 'Chronomètre en cours';
   } else if (!idle()) { sub = 'En pause'; summary = 'En pause'; }
-  else { sub = down ? fmtDuration(T.duration) : 'Prêt'; summary = down ? 'Temps limité : choisis une durée' : 'Illimité : compte jusqu’à ce que tu l’arrêtes'; }
+  else { sub = down ? fmtDuration(T.duration) : 'Prêt'; summary = down ? 'Temps limité : choisis une durée' : 'Illimité : tourne jusqu’à l’arrêt'; }
   $('#timerSub').textContent = sub;
   $('#timerSummary').textContent = summary;
 
@@ -194,6 +197,19 @@ function timerLabel() {
 }
 
 const timerRinging = () => T.ringing;
+
+// Temps dans le mini-dock (option de l'onglet). Fenêtre visible = page éveillée : la pilule peut
+// compter elle-même. Calée sur le changement de seconde, pour ne jamais sauter un chiffre.
+// Une fois terminé, c'est la cloche du mini-dock qui prend le relais.
+let pillTimer = 0;
+
+function updatePill() {
+  clearTimeout(pillTimer);
+  if (!settings.timerPill || idle() || T.ringing) { setMiniTimer(null); return; }
+  const down = T.mode === 'down';
+  setMiniTimer({ text: down ? fmtClock(remaining()) : fmtClock(elapsedNow(), true), paused: !running() });
+  if (running()) pillTimer = setTimeout(updatePill, (down ? remaining() % 1000 || 1000 : 1000 - elapsedNow() % 1000) + 10);
+}
 
 // --- commandes de Maya (chat/tools.js) : chacune renvoie une phrase pour le modèle
 
@@ -272,6 +288,8 @@ function setupTimer() {
   $('#timerPlay').addEventListener('click', () => (running() ? pause() : start()));
   $('#timerReset').addEventListener('click', resetTimer);
   $('#timerPlus').addEventListener('click', addMinute);
+  onSettingChange((key) => { if (key === 'timerPill') updatePill(); });
+  updatePill();
 }
 
 export {

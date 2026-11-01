@@ -17,6 +17,7 @@ const DEFAULTS = {
   backend: 'pro', ccModel: 'default',
   freeService: 'gemini', freeModel: '', freeFallback: true, // modèle gratuit ('' = automatique)
   musicSource: 'deezer', musicReveal: true, lyricsOpen: true, miniLyrics: true, musicTint: true,
+  timerPill: false, // temps du minuteur dans le mini-dock
   model: 'claude-opus-5-5', effort: 'medium', customInstr: '', lastTab: 'claude', settingsPage: 'maya',
   updateCheck: true, updateSkipped: '', // mises à jour : vérification automatique, version ignorée (« v1.2.3 »)
 };
